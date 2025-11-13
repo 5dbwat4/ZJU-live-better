@@ -18,7 +18,7 @@ const RaderInfo = {
 
 // 成功率：目前【雷达点名】+【已配置了雷达地点】的情况可以100%签到成功
 //        数字点名已测试，已成功，确定远程没有限速，没有calm down，但是目前单线程，可能会有点慢，
-//        三点定位法未实现
+//        三点定位法未测试，欢迎向我反馈
 
 // 顺便一提，经测试，rader_out_of_scope的限制是500米整
 
@@ -31,32 +31,54 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 let req_num = 0;
 
 let we_are_bruteforcing = [];
+const ROLLCALL_URL = "https://courses.zju.edu.cn/api/radar/rollcalls";
+
+async function fetchRollcalls() {
+  const response = await courses.fetch(ROLLCALL_URL).catch((err) => {
+    console.error("[Auto Sign-in] Failed to fetch rollcalls:", err);
+    throw err;
+  });
+  const contentType = response.headers.get("content-type") || "";
+  if (!response.ok || !contentType.includes("application/json")) {
+    const body = await response.text();
+    console.warn(
+      `[Auto Sign-in] Unexpected response (${response.status}): ${body.slice(
+        0,
+        200
+      )}`
+    );
+    if (typeof courses.resetSession === "function") {
+      courses.resetSession(); // drop cached cookies/session
+    } else {
+      courses.firstTime = true;
+      courses.session = "";
+    }
+    throw new Error("Unexpected response content");
+  }
+  return response.json();
+}
 
 // if (false)
 (async () => {
   while (true) {
-    await courses
-      .fetch("https://courses.zju.edu.cn/api/radar/rollcalls")
-      .then((v) => v.json())
-      .then(async (v) => {
-        if (v.rollcalls.length == 0) {
-          console.log(`[Auto Sign-in](Req #${++req_num}) No rollcalls found.`);
-        } else {
-          console.log(
-            `[Auto Sign-in](Req #${++req_num}) Found ${v.rollcalls.length} rollcalls. 
+    try {
+      const v = await fetchRollcalls();
+      if (v.rollcalls.length == 0) {
+        console.log(`[Auto Sign-in](Req #${++req_num}) No rollcalls found.`);
+      } else {
+        console.log(
+          `[Auto Sign-in](Req #${++req_num}) Found ${v.rollcalls.length} rollcalls. 
                 They are:${v.rollcalls.map(
-              (rc) => `
+            (rc) => `
                   - ${rc.title} @ ${rc.course_title} by ${rc.created_by_name} (${rc.department_name})`
-            )}`
-          );
-          // console.log(v.rollcalls);
+          )}`
+        );
+        // console.log(v.rollcalls);
 
-
-
-          v.rollcalls.forEach((rollcall) => {
-            /**
-             * It looks like 
-             * 
+        v.rollcalls.forEach((rollcall) => {
+          /**
+           * It looks like 
+           * 
   {
     avatar_big_url: '',
     class_name: '',
@@ -82,29 +104,31 @@ let we_are_bruteforcing = [];
     type: 'another'
   }
              */
-            const rollcallId = rollcall.rollcall_id;
+          const rollcallId = rollcall.rollcall_id;
 
-            if (rollcall.status == "on_call_fine" || rollcall.status == "on_call") {
-              console.log("[Auto Sign-in] Note that #" + rollcallId + " is on call.");
-              ;
+          if (rollcall.status == "on_call_fine" || rollcall.status == "on_call") {
+            console.log("[Auto Sign-in] Note that #" + rollcallId + " is on call.");
+            ;
+            return;
+          }
+          console.log("[Auto Sign-in] Now answering rollcall #" + rollcallId);
+          if (rollcall.is_radar) {
+            answerRaderRollcall(RaderInfo[CONFIG.raderAt], rollcallId);
+          }
+          if (rollcall.is_number) {
+            if(we_are_bruteforcing.includes(rollcallId)){
+              console.log("[Auto Sign-in] We are already bruteforcing rollcall #" + rollcallId);
               return;
             }
-            console.log("[Auto Sign-in] Now answering rollcall #" + rollcallId);
-            if (rollcall.is_radar) {
-              answerRaderRollcall(RaderInfo[CONFIG.raderAt], rollcallId);
-            }
-            if (rollcall.is_number) {
-              if(we_are_bruteforcing.includes(rollcallId)){
-                console.log("[Auto Sign-in] We are already bruteforcing rollcall #" + rollcallId);
-                return;
-              }
-              we_are_bruteforcing.push(rollcallId);
-              console.log("[Auto Sign-in] Now bruteforcing rollcall #" + rollcall)
-              batchNumberRollCall(rollcallId);
-            }
-          });
-        }
-      });
+            we_are_bruteforcing.push(rollcallId);
+            console.log("[Auto Sign-in] Now bruteforcing rollcall #" + rollcall)
+            batchNumberRollCall(rollcallId);
+          }
+        });
+      }
+    } catch (err) {
+      console.error("[Auto Sign-in] Polling failed, will retry after cooldown:", err?.message ?? err);
+    }
 
     await sleep(CONFIG.coldDownTime);
   }

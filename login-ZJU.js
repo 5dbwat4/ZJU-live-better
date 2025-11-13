@@ -5,15 +5,14 @@
  */
 var g={};function x(i,n){let t=new URL(i).host;return g[t]=g[t]||{},g[t]&&(n.headers={Cookie:Object.entries(g[t]).
 map(([e,o])=>`${e}=${o}`).join("; ")}),n.redirect="manual",fetch(i,n).then(e=>(e.headers.get("set-cookie")&&e.
-headers.getSetCookie().forEach(o=>{let[s,a]=o.split("=");g[t][s]=a}),e))}var c=x;var d=class{constructor(n){this.session="";this.firstTime=!0;this.zjuamInstance=n}async login(){return console.
-log("[COURSES] login begins"),c("https://courses.zju.edu.cn/user/index",{redirect:"manual"}).then(n=>{if(n.status==
-302)return c(n.headers.get("Location"),{redirect:"manual"});throw new Error("Fail at first load.")}).then(n=>{
-if(n.status==303)return c(n.headers.get("Location"),{redirect:"manual"});throw new Error("Fail at first load.")}).
-then(async n=>{if(n.status==303){let t=await this.zjuamInstance.loginSvc(decodeURIComponent(n.headers.get("Loc\
-ation").replace("https://zjuam.zju.edu.cn/cas/login?service=","")));return c(t,{redirect:"manual"})}else throw new Error(
-"Fail at first load.")}).then(n=>{if(n.status==302)return c(n.headers.get("Location"),{redirect:"manual"});throw new Error(
-"Fail at second load.")}).then(n=>{if(n.status==302)return console.log("[COURSES] Login success!"),this.session=
-n.headers.get("Set-Cookie").split(";")[0].split("=")[1],!0;throw new Error("Fail at login.")})}async fetch(n,t={}){
+headers.getSetCookie().forEach(o=>{let[s,a]=o.split("=");g[t][s]=a}),e))}var c=x;var d=class{constructor(n){this.session="";this.firstTime=!0;this.zjuamInstance=n}resetSession(){this.session="",this.firstTime=!0,delete g["courses.zju.edu.cn"]}async login(){return console.
+log("[COURSES] login begins"),c("https://courses.zju.edu.cn/user/index",{redirect:"manual"}).then(n=>{console.log("[COURSES] First load status:",n.status);if(n.status==
+302)return c(n.headers.get("Location"),{redirect:"manual"});throw new Error("Fail at first load (step 1).")}).then(n=>{
+console.log("[COURSES] Second load status:",n.status);if(n.status==303||n.status==302){let t=n.headers.get("Location");if(!t)throw new Error("Fail at first load (step 2, missing location).");return c(t,{redirect:"manual"});}throw new Error("Fail at first load (step 2).")}).
+then(async n=>{console.log("[COURSES] Third load status:",n.status);if(n.status==303||n.status==302){let t=n.headers.get("Location");if(!t)throw new Error("Fail at first load (step 3, missing location).");let e=n.status==303?decodeURIComponent(t.replace("https://zjuam.zju.edu.cn/cas/login?service=","")):t;let o=n.status==303?await this.zjuamInstance.loginSvc(e):t;console.log("[COURSES] Third load redirecting to:",o);return c(o,{redirect:"manual"})}else throw new Error(
+"Fail at first load (step 3).")}).then(n=>{console.log("[COURSES] Fourth load status:",n.status,"cookie?",!!n.headers.get("Set-Cookie"));if(n.status==302)return c(n.headers.get("Location"),{redirect:"manual"});if(n.headers.get("Set-Cookie"))return n;throw new Error(
+"Fail at second load.")}).then(n=>{if(n.status==302)return c(n.headers.get("Location"),{redirect:"manual"});if(n.headers.get("Set-Cookie"))return n;throw new Error(
+"Fail at second load.")}).then(n=>{console.log("[COURSES] Fifth load status:",n.status,"cookie?",!!n.headers.get("Set-Cookie"));return(async s=>{if(s.headers.get("Set-Cookie"))return this.session=s.headers.get("Set-Cookie").split(";")[0].split("=")[1],console.log("[COURSES] Login success!"),!0;if(s.status==302){let a=s.headers.get("Location");if(!a)throw new Error("Fail at login (missing redirect).");let h=await c(a,{redirect:"manual"});if(h.headers.get("Set-Cookie"))return this.session=h.headers.get("Set-Cookie").split(";")[0].split("=")[1],console.log("[COURSES] Login success!"),!0;throw new Error("Fail at login (no cookie after redirect).")}throw new Error("Fail at login.")})(n)})}async fetch(n,t={}){
 return this.firstTime&&(await this.login(),this.firstTime=!1),console.log("[COURSES] Fetching url:",n),t.headers=
 {...t?.headers,Cookie:"session="+this.session+";","X-Session-Id":this.session},fetch(n,t).then(e=>{if(e.headers.
 get("Set-Cookie")){let o=e.headers.get("Set-Cookie").split(";")[0].split("=")[1];o!==this.session&&(this.session=
