@@ -1,12 +1,23 @@
-const PotPlayerPath =
-  "D:\\Developing_Environment\\Programs\\PotPlayer\\PotPlayerMini64.exe";// Set to your path
-
-
 import inquirer from "inquirer";
 import { CLASSROOM, ZJUAM } from "login-zju";
 
 import "dotenv/config";
 import { spawn } from "child_process";
+
+const defaultPlayerCommand =
+  process.env.MEDIA_PLAYER_CMD ||
+  (process.platform === "win32"
+    ? "D:\\Developing_Environment\\Programs\\PotPlayer\\PotPlayerMini64.exe"
+    : "open");
+
+const defaultPlayerArgs = process.env.MEDIA_PLAYER_ARGS
+  ? process.env.MEDIA_PLAYER_ARGS.split(" ").filter((segment) => segment.length > 0)
+  : [];
+
+const playerInfo = {
+  command: defaultPlayerCommand,
+  args: defaultPlayerArgs,
+};
 
 
 const classroom = new CLASSROOM(
@@ -105,8 +116,21 @@ async function ChooseVideo(choices) {
         })
         .then((confirm) => {
           if (confirm.confirm) {
-            // const { spawn } = require("child_process");
-            const potplayer = spawn(PotPlayerPath, [url]);
+            if (!playerInfo.command) {
+              console.log(
+                "Player command not configured. Set MEDIA_PLAYER_CMD to enable auto playback."
+              );
+              return;
+            }
+
+            const potplayer = spawn(playerInfo.command, [...playerInfo.args, url], {
+              stdio: "ignore",
+            });
+
+            potplayer.on("error", (error) => {
+              console.error("Failed to launch player:", error.message);
+            });
+
             potplayer.on("close", (code) => {
               console.log(`child process exited with code ${code}`);
               ChooseVideo(choices);

@@ -10,15 +10,15 @@
  * 2. 不提供'-u'，会提示你手动输入，不提供'-o'，会使用下面的默认值
  */
 
-const defaultOutputDir = 'D:/Study-related/Admin/';
-
-
 import * as cheerio from 'cheerio';
 import fs from 'fs';
 import path from 'path';
 import { promisify } from 'util';
 import readline from 'readline';
 import stream from 'stream';
+import os from 'os';
+
+const defaultOutputDir = path.join(os.homedir(), 'Documents', 'WebPlusArchive');
 
 // 将回调函数转换为Promise版本
 const pipeline = promisify(stream.pipeline);
@@ -137,7 +137,7 @@ async function main() {
     // 处理输出目录（将~替换为用户主目录）
     let outputDir = args.outputDir;
     if (outputDir.startsWith('~/')) {
-      outputDir = path.join(process.env.HOME || process.env.USERPROFILE, outputDir.slice(2));
+      outputDir = path.join(os.homedir(), outputDir.slice(2));
     }
     
     // 确保输出目录存在
