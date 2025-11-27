@@ -63,8 +63,10 @@ async function dingTalk(msg) {
       body: JSON.stringify(body),
     });
 
-    if (!response.ok) {
-      console.error(`[DingTalk] Failed: ${response.statusText}`);
+    const responseData = await response.json();
+
+    if (responseData.errcode) {
+      console.error(`[DingTalk] Failed: ${responseData.errmsg}`);
     }
   } catch (e) {
     console.error("[DingTalk] Error sending message:", e);
@@ -76,7 +78,7 @@ const courses = new COURSES(
   new ZJUAM(process.env.ZJU_USERNAME, process.env.ZJU_PASSWORD)
 );
 
-dingTalk("[Auto Sign-in] Logined in as " + process.env.ZJU_USERNAME);
+dingTalk("[Auto Sign-in] Logged in to courses.zju.edu.cn as " + process.env.ZJU_USERNAME);
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -245,7 +247,7 @@ async function answerRaderRollcall(raderXY, rid) {
     const outcome = await _req(value[0], value[1]);
     if (outcome.status_name == "on_call_fine") {
       console.log(
-        "[Auto Sign-in] Congradulations! You are on the call at Rader location: " +
+        "[Auto Sign-in] Congratulations! You are on the call at Rader location: " +
         key
       );
       return true;
@@ -292,7 +294,7 @@ async function answerRaderRollcall(raderXY, rid) {
       try {
         const outcome = JSON.parse(fa);
         if (outcome.status_name == "on_call_fine") {
-          console.log("[Auto Sign-in] Congradulations! You are on the call.");
+          console.log("[Auto Sign-in] Congratulations! You are on the call.");
           dingTalk(`[Auto Sign-in] Rader Rollcall ${rollcallId} succeeded: on call fine.`);
         }
       } catch (e) {
