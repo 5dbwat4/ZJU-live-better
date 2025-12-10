@@ -217,13 +217,108 @@ async function answerRaderRollcall(raderXY, rid) {
     rader_outcome.push([value,outcome]);
   }
 
-  // Step 3: If all Rader locations failed, try three-point triangulation
-  if (rader_outcome.length > 3) {
-    const XYList = rader_outcome.filter(v=>v[1].error_code=="radar_out_of_rollcall_scope").map((v)=>{
-      return [v[0][0], v[0][1],v[1].distance];
-    })
-    // Find the exact distance of the center 
+  // Step 3: If all Rader locations failed, try three-point triangulation (trilateration)
+  // 从返回结果中提取距离字段
+  const extractDistance = (outcome) => {
+    const candidates = [
+      outcome?.distance,
+      outcome?.data?.distance,
+      outcome?.result?.distance,
+    ];
+    for (const c of candidates) {
+      const n = Number(c);
+      if (Number.isFinite(n) && n > 0) return n;
+    }
+    return null;
+  };
 
+  // 经纬度转换系数（在浙江区域，约30°N）
+  const LAT_SCALE = 111000;  // 纬度比例：1度 ≈ 111km
+  const getLonScale = (lat) => 111000 * Math.cos((lat * Math.PI) / 180);
+
+  if (rader_outcome.length >= 3) {
+    // 筛选出有距离信息的点（通常是超出范围的点会返回 distance）
+    const rawPoints = rader_outcome
+      .map(([coord, outcome]) => {
+        const d = extractDistance(outcome);
+        if (!d) return null;
+        return { lon: coord[0], lat: coord[1], d };
+      })
+      .filter(Boolean);
+
+    if (rawPoints.length >= 3) {
+      // 使用最小二乘法进行三边测量
+      // 关键：需要将经纬度转换为米制坐标系进行计算
+      
+      // 以第一个点为参考原点
+      const refLon = rawPoints[0].lon;
+      const refLat = rawPoints[0].lat;
+      const lonScale = getLonScale(refLat);
+      
+      // 将所有点转换为米制坐标
+      const points = rawPoints.map((p) => ({
+        x: (p.lon - refLon) * lonScale,
+        y: (p.lat - refLat) * LAT_SCALE,
+        d: p.d,
+      }));
+
+      const ref = points[0]; // 参考点在米制坐标系中为 (0, 0)
+      const A = [];
+      const b = [];
+      for (let i = 1; i < points.length; i++) {
+        const p = points[i];
+        A.push([2 * (p.x - ref.x), 2 * (p.y - ref.y)]);
+        b.push(
+          p.x * p.x +
+            p.y * p.y -
+            p.d * p.d -
+            (ref.x * ref.x + ref.y * ref.y - ref.d * ref.d)
+        );
+      }
+
+      // 使用最小二乘法求解：x = (A^T A)^-1 A^T b
+      const ata00 = A.reduce((s, r) => s + r[0] * r[0], 0);
+      const ata01 = A.reduce((s, r) => s + r[0] * r[1], 0);
+      const ata11 = A.reduce((s, r) => s + r[1] * r[1], 0);
+      const det = ata00 * ata11 - ata01 * ata01;
+
+      if (Math.abs(det) > 1e-6) {
+        // 计算 (A^T A)^-1
+        const inv = [
+          [ata11 / det, -ata01 / det],
+          [-ata01 / det, ata00 / det],
+        ];
+        const atb0 = A.reduce((s, r, idx) => s + r[0] * b[idx], 0);
+        const atb1 = A.reduce((s, r, idx) => s + r[1] * b[idx], 0);
+        const estX = inv[0][0] * atb0 + inv[0][1] * atb1;
+        const estY = inv[1][0] * atb0 + inv[1][1] * atb1;
+
+        // 将米制坐标转换回经纬度
+        const estLon = refLon + estX / lonScale;
+        const estLat = refLat + estY / LAT_SCALE;
+
+        console.log(
+          `[Auto Sign-in] Trilateration estimated location: (${estLon.toFixed(6)}, ${estLat.toFixed(6)}) based on ${points.length} samples.`
+        );
+
+        // 使用估计的位置尝试签到
+        const triOutcome = await _req(estLon, estLat);
+        if (triOutcome?.status_name === "on_call_fine") {
+          sendBoth(
+            `[Auto Sign-in] Trilateration succeeded with outcome: ${JSON.stringify(triOutcome)}`
+          );
+          return true;
+        } else {
+          console.log(
+            `[Auto Sign-in] Trilateration failed, outcome: ${JSON.stringify(triOutcome)}`
+          );
+        }
+      } else {
+        console.log("[Auto Sign-in] Trilateration skipped: matrix degenerate.");
+      }
+    } else {
+      console.log("[Auto Sign-in] Trilateration skipped: not enough points with distance field.");
+    }
   }
   return await courses
     .fetch(
