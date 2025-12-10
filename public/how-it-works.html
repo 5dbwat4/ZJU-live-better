@@ -68,8 +68,13 @@
                         <p>所有落盘存储的敏感数据（密码、Cookie）均经过 AES-256 算法加密。加密密钥由环境变量 <code>APP_SECRET</code> 动态派生，仅存于内存中。</p>
                     </div>
                     <div class="tech-item delay-200 fade-in-up">
-                        <h4>🚫 极致安全模式</h4>
-                        <p>在此模式下，系统<span class="highlight">完全不存储您的密码</span>。密码仅在初次授权时用于获取 Cookie，随后立即在内存中销毁。Cookie 失效后需重新手动授权。</p>
+                        <div style="opacity: 0.4; pointer-events: none;">
+                            <h4>
+                                🚫 极致安全模式 
+                                <span style="font-size: 0.9em; color: #ff0387; margin-left: 0.5em;">（暂未实现）</span>
+                            </h4>
+                            <p>在此模式下，系统<span class="highlight">完全不存储您的密码</span>。密码仅在初次授权时用于获取 Cookie，随后立即在内存中销毁。Cookie 失效后需重新手动授权。</p>
+                        </div>
                     </div>
                     <div class="tech-item delay-300 fade-in-up">
                         <h4>🏠 本地化存储</h4>
