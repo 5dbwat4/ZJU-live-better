@@ -1,11 +1,11 @@
 # zju-autosign[AI generated]
 
-`zju-autosign` 是一个服务器端自动打卡托管项目，核心脚本直接继承自 [5dbwat4/ZJU-live-better](https://github.com/5dbwat4/ZJU-live-better)，采用了其自动打卡逻辑，并在此基础上整合了数据管理、控制器界面、HTTPS 与钉钉告警等能力，方便以服务形式部署在 VPS 或校内服务器中。
+`zju-autosign` 是一个服务器端自动打卡托管项目，核心脚本直接继承自 [5dbwat4/ZJU-live-better](https://github.com/5dbwat4/ZJU-live-better)，采用了其自动打卡逻辑，并在此基础上整合了数据管理、控制器界面、HTTPS 与钉钉告警等能力，方便以服务形式部署在 VPS 或其他服务器中。
 
 ## 快速上手
 
 1. 克隆本仓库（或将已有目录直接复制进去）。
-2. 复制 `.env.example` 为 `.env`，并根据注释填入 `APP_SECRET`、`CONTROL_TOKEN`、HTTPS 证书以及钉钉 Webhook 等配置。
+2. 复制 `.env.example` 为 `.env`，并根据注释填入 `APP_SECRET`、`CONTROL_TOKEN`、HTTPS 证书（可选）以及钉钉 Webhook 等配置。
 3. 运行 `npm install` 安装依赖，后续只需 `npm run start` 启动控制服务器即可（默认监听 `CONTROL_PORT`）。
 
 控制端配套的静态页面位于 `public/`，你可以通过 `CONTROL_PORT` 访问或在 Nginx 等前端代理下部署 HTTPS。
