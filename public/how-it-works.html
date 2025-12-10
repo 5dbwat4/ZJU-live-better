@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工作原理深度解析 - ZJU 云助理</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Noto+Sans+SC:wght@300;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="aurora-bg"></div>
+    <div class="grid-bg"></div>
+    <canvas id="particleCanvas"></canvas>
+
+    <div class="scroll-container" id="scrollContainer">
+        
+        <!-- Section 1: Overview -->
+        <section class="scroll-section" id="section-overview">
+            <div class="container fade-in-up">
+                <h1>System Architecture</h1>
+                <div class="subtitle">
+                    深入了解 ZJU 云助理的幕后技术
+                </div>
+                <p style="max-width: 600px; text-align: center; color: rgba(255,255,255,0.7); font-size: 1.1rem; line-height: 1.6;">
+                    一个基于 Node.js 构建的高性能、隐私优先的自动化签到系统。我们致力于在不牺牲安全性的前提下，为您节省每一秒宝贵时间。
+                </p>
+            </div>
+            <div class="scroll-indicator" onclick="scrollToNext()">↓</div>
+        </section>
+
+        <!-- Section 2: Auto Sign-in -->
+        <section class="scroll-section">
+            <div class="detail-content fade-in-up">
+                <h2 class="detail-title">🤖 自动签到原理</h2>
+                <div class="detail-text">
+                    系统内置了一个强大的自动化代理引擎 (Auto Agent)，它并不只是简单的发送 HTTP 请求，而是像一个真实的人类用户一样与教务系统交互。
+                </div>
+                
+                <div class="tech-grid">
+                    <div class="tech-item delay-100 fade-in-up">
+                        <h4>🔍 智能轮询</h4>
+                        <p>系统会定期（遵循随机冷却时间）向服务器查询是否存在未完成的签到任务。一旦发现，立即触发响应逻辑。</p>
+                    </div>
+                    <div class="tech-item delay-200 fade-in-up">
+                        <h4>📍 雷达签到 (Radar)</h4>
+                        <p>对于位置签到，系统利用<span class="highlight">虚拟 GPS 定位</span>技术。通过三边测量算法 (Trilateration) 结合多点探测，精确计算并伪造符合要求的位置数据。</p>
+                    </div>
+                    <div class="tech-item delay-300 fade-in-up">
+                        <h4>🔢 数字签到 (Number)</h4>
+                        <p>面对四位数字验证码，系统启用<span class="highlight">并发暴力破解</span>模块。以 200/批次 的速度极速扫描 0000-9999，通常在 5 秒内即可命中正确验证码。</p>
+                    </div>
+                </div>
+            </div>
+            <div class="scroll-indicator" onclick="scrollToNext()">↓</div>
+        </section>
+
+        <!-- Section 3: Encryption -->
+        <section class="scroll-section">
+            <div class="detail-content fade-in-up">
+                <h2 class="detail-title" style="color: var(--secondary); text-shadow: 0 0 20px rgba(255, 0, 85, 0.3);">🔐 数据加密与隐私</h2>
+                <div class="detail-text">
+                    我们深知账号安全的重要性。因此，系统采用了工业级的加密标准，确保即使在最坏的情况下（如服务器物理被盗），您的账号密码依然安全。
+                </div>
+
+                <div class="tech-grid">
+                    <div class="tech-item delay-100 fade-in-up">
+                        <h4>🛡️ AES-256 加密</h4>
+                        <p>所有落盘存储的敏感数据（密码、Cookie）均经过 AES-256 算法加密。加密密钥由环境变量 <code>APP_SECRET</code> 动态派生，仅存于内存中。</p>
+                    </div>
+                    <div class="tech-item delay-200 fade-in-up">
+                        <h4>🚫 极致安全模式</h4>
+                        <p>在此模式下，系统<span class="highlight">完全不存储您的密码</span>。密码仅在初次授权时用于获取 Cookie，随后立即在内存中销毁。Cookie 失效后需重新手动授权。</p>
+                    </div>
+                    <div class="tech-item delay-300 fade-in-up">
+                        <h4>🏠 本地化存储</h4>
+                        <p>作为自托管或本地化部署服务，您的所有数据（包括加密后的凭证）仅存储在运行服务的服务器本地文件系统中，绝不会上传至任何第三方云端。</p>
+                    </div>
+                </div>
+            </div>
+            <div class="scroll-indicator" onclick="scrollToNext()">↓</div>
+        </section>
+
+        <!-- Section 4: Scheduler & Return -->
+        <section class="scroll-section">
+            <div class="detail-content fade-in-up">
+                <h2 class="detail-title" style="color: var(--accent); text-shadow: 0 0 20px rgba(45, 255, 120, 0.3);">⏱️ 智能调度</h2>
+                <div class="detail-text">
+                    为了避免规律性操作触发教务系统的风控机制，我们引入了<span class="highlight">随机扰动算法</span>。任务执行时间会在预设窗口内随机浮动，模拟真实人类的不确定性行为。
+                </div>
+
+                <div class="actions" style="margin-top: 4rem;">
+                    <a href="./index.html" class="btn">
+                        <span>🔙</span> 返回主页
+                    </a>
+                </div>
+            </div>
+            <div class="scroll-indicator" style="transform: rotate(180deg);" onclick="scrollToTop()">↓</div>
+        </section>
+
+    </div>
+
+    <script src="js/particles.js"></script>
+    <script>
+        // Intersection Observer for scroll animations
+        const observerOptions = {
+            threshold: 0.3
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('active');
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.scroll-section').forEach(section => {
+            observer.observe(section);
+        });
+
+        const container = document.getElementById('scrollContainer');
+
+        function scrollToNext() {
+            const height = window.innerHeight;
+            const currentScroll = container.scrollTop;
+            const nextScroll = Math.floor((currentScroll + height / 2) / height) * height + height;
+            container.scrollTo({
+                top: nextScroll,
+                behavior: 'smooth'
+            });
+        }
+
+        function scrollToTop() {
+            container.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
+    </script>
+</body>
+</html>

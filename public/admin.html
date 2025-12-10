@@ -1,0 +1,1232 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理控制台 - ZJU 云助理</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Noto+Sans+SC:wght@300;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #00f2ff;
+      --secondary: #ff0055;
+      --bg-dark: #0a0b1e;
+      --glass-bg: rgba(255, 255, 255, 0.05);
+      --glass-border: rgba(255, 255, 255, 0.1);
+      --text-main: #ffffff;
+      --text-dim: rgba(255, 255, 255, 0.6);
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      font-family: 'Noto Sans SC', sans-serif;
+      color: var(--text-main);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* 极光背景 */
+    .aurora-bg {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      z-index: -2;
+      background: radial-gradient(circle at 10% 20%, rgba(68, 0, 255, 0.1) 0%, transparent 40%),
+                  radial-gradient(circle at 90% 80%, rgba(255, 0, 85, 0.1) 0%, transparent 40%),
+                  radial-gradient(circle at 50% 50%, rgba(0, 242, 255, 0.05) 0%, transparent 60%);
+    }
+
+    .navbar {
+      background: rgba(10, 11, 30, 0.8) !important;
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--glass-border);
+      padding: 1rem 0;
+    }
+
+    /* 玻璃拟态卡片 */
+    .glass-card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      transition: all 0.3s ease;
+    }
+    
+    .glass-card:hover {
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .card { background: transparent; border: none; }
+
+    /* 统计卡片特殊样式 */
+    .stat-card {
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 30px rgba(0, 242, 255, 0.1);
+    }
+    .stat-card .stat-icon {
+      position: absolute;
+      right: -10px;
+      top: -10px;
+      font-size: 6rem;
+      opacity: 0.1;
+      transform: rotate(15deg);
+      transition: all 0.5s;
+    }
+    .stat-card:hover .stat-icon {
+      transform: rotate(0deg) scale(1.1);
+      opacity: 0.2;
+    }
+    
+    .stat-value {
+      font-family: 'Montserrat', sans-serif;
+      text-shadow: 0 0 20px currentColor;
+    }
+
+    /* 表格样式 */
+    .table {
+      --bs-table-bg: transparent;
+      --bs-table-color: var(--text-main);
+      --bs-table-border-color: var(--glass-border);
+    }
+    .table th {
+      font-weight: 600;
+      color: var(--primary);
+      border-bottom: 1px solid var(--primary);
+      text-transform: uppercase;
+      font-size: 0.8rem;
+      letter-spacing: 1px;
+      padding-bottom: 1rem;
+    }
+    .table td {
+      vertical-align: middle;
+      font-size: 0.9rem;
+      border-bottom: 1px solid var(--glass-border);
+      padding: 1rem 0.5rem;
+    }
+    .table-hover tbody tr:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    /* 控件样式 */
+    .form-control, .form-select {
+      background-color: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--glass-border);
+      color: white;
+      border-radius: 8px;
+      padding: 0.6rem 1rem;
+    }
+    .form-control:focus, .form-select:focus {
+      background-color: rgba(0, 0, 0, 0.5);
+      border-color: var(--primary);
+      box-shadow: 0 0 15px rgba(0, 242, 255, 0.3);
+      color: white;
+    }
+    .form-control::placeholder { color: rgba(255, 255, 255, 0.3); }
+
+    .btn-primary {
+      background: var(--primary);
+      border: none;
+      color: #000;
+      font-weight: bold;
+      box-shadow: 0 0 15px rgba(0, 242, 255, 0.4);
+    }
+    .btn-primary:hover {
+      background: #fff;
+      box-shadow: 0 0 25px rgba(255, 255, 255, 0.6);
+    }
+
+    .btn-outline-secondary {
+      border-color: var(--glass-border);
+      color: var(--text-dim);
+    }
+    .btn-outline-secondary:hover {
+      background: rgba(255,255,255,0.1);
+      color: white;
+      border-color: white;
+    }
+
+    /* 徽章与状态点 */
+    .user-token-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 4px 8px;
+      border-radius: 4px;
+      color: var(--text-dim);
+      border: 1px solid var(--glass-border);
+    }
+    .status-badge-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 8px;
+      box-shadow: 0 0 10px currentColor;
+    }
+    
+    /* 模态框 */
+    .modal-content {
+      background: rgba(16, 18, 27, 0.95);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      color: white;
+    }
+    .modal-header, .modal-footer { border-color: var(--glass-border); }
+    .btn-close { filter: invert(1); }
+
+    /* 字体覆盖 */
+    h1, h2, h3, h4, h5, h6 { font-family: 'Montserrat', sans-serif; }
+    .text-muted { color: rgba(255,255,255,0.4) !important; }
+    .text-dark { color: white !important; }
+    .bg-light { background-color: rgba(255,255,255,0.05) !important; }
+    .bg-white { background-color: transparent !important; }
+  </style>
+</head>
+<body>
+  <div class="aurora-bg"></div>
+
+  <!-- 导航栏 -->
+  <nav class="navbar navbar-dark mb-4">
+    <div class="container-fluid px-4">
+      <span class="navbar-brand mb-0 h1 fw-bold" style="color: var(--primary); text-shadow: 0 0 10px rgba(0, 242, 255, 0.5);">
+        <i class="bi bi-cpu me-2"></i>管理控制台
+      </span>
+      <div class="d-flex align-items-center">
+          <a href="/" class="btn btn-sm btn-outline-light rounded-pill me-3" style="border-color: var(--glass-border);">
+            <i class="bi bi-house-fill me-1"></i> 返回主页
+          </a>
+          <span class="navbar-text small text-dim font-monospace">
+            系统状态: <span class="text-success">● 在线</span>
+          </span>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container-fluid px-4">
+    <!-- Token 认证卡片 -->
+    <div class="row justify-content-center mb-5 mt-5">
+      <div class="col-lg-6">
+        <div class="glass-card p-5">
+          <h4 class="card-title mb-4 fw-bold text-white text-center">安全检查</h4>
+          <div class="mb-4">
+            <label class="form-label small text-dim text-uppercase fw-bold">管理口令</label>
+            <div class="input-group">
+              <span class="input-group-text bg-transparent border-end-0 text-primary" style="border-color: var(--glass-border);"><i class="bi bi-shield-lock"></i></span>
+              <input type="password" class="form-control border-start-0" id="token" placeholder="输入访问密钥">
+              <button class="btn btn-outline-secondary border-start-0" type="button" onclick="toggleTokenVisibility()" style="border-color: var(--glass-border);">
+                <i class="bi bi-eye" id="tokenEye"></i>
+              </button>
+            </div>
+          </div>
+          <div class="d-flex justify-content-between align-items-center mb-4">
+             <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="rememberToken">
+              <label class="form-check-label small text-dim" for="rememberToken">记住会话</label>
+            </div>
+          </div>
+          <button class="btn btn-primary w-100 py-3 rounded-pill fw-bold" onclick="loadDashboard()">
+            <i class="bi bi-unlock-fill me-2"></i> 解密并进入
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 数据看板 -->
+    <div class="row mb-4 g-4" id="statsRow" style="display: none;">
+      <div class="col-md-3">
+        <div class="glass-card stat-card p-4">
+          <i class="bi bi-people stat-icon text-primary"></i>
+          <h6 class="text-dim text-uppercase small fw-bold mb-2">用户总数</h6>
+          <h2 class="mb-0 fw-bold display-5 text-white stat-value" id="statTotal">-</h2>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="glass-card stat-card p-4">
+          <i class="bi bi-activity stat-icon text-success"></i>
+          <h6 class="text-dim text-uppercase small fw-bold mb-2">活跃</h6>
+          <h2 class="mb-0 fw-bold display-5 text-success stat-value" id="statRunning" style="text-shadow: 0 0 20px rgba(45, 255, 120, 0.4);">-</h2>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="glass-card stat-card p-4">
+          <i class="bi bi-clock-history stat-icon text-info"></i>
+          <h6 class="text-dim text-uppercase small fw-bold mb-2">已计划</h6>
+          <h2 class="mb-0 fw-bold display-5 text-info stat-value" id="statScheduled">-</h2>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="glass-card stat-card p-4">
+          <i class="bi bi-pause-circle stat-icon text-secondary"></i>
+          <h6 class="text-dim text-uppercase small fw-bold mb-2">已停止</h6>
+          <h2 class="mb-0 fw-bold display-5 text-secondary stat-value" id="statStopped">-</h2>
+        </div>
+      </div>
+    </div>
+
+    <!-- 主要功能区 -->
+    <div class="row g-4">
+      <!-- 用户管理 -->
+      <div class="col-lg-8 mb-4">
+        <div class="glass-card h-100 p-0 overflow-hidden">
+          <div class="p-4 border-bottom d-flex justify-content-between align-items-center" style="border-color: var(--glass-border) !important;">
+            <h5 class="mb-0 fw-bold text-white"><i class="bi bi-grid me-2 text-primary"></i>用户数据库</h5>
+            <button class="btn btn-sm btn-outline-success rounded-pill px-3" onclick="showAddUserModal()">
+              <i class="bi bi-plus-lg me-1"></i> 新建用户
+            </button>
+          </div>
+          <div class="p-0">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0" id="usersTable">
+                <thead>
+                  <tr>
+                    <th class="ps-4">用户身份</th>
+                    <th>状态</th>
+                    <th>模式</th>
+                    <th>计划</th>
+                    <th>节点</th>
+                    <th class="text-end pe-4">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="usersTableBody">
+                  <tr>
+                    <td colspan="6" class="text-center text-dim py-5">
+                      <i class="bi bi-shield-lock fs-1 d-block mb-2 opacity-25"></i>
+                      等待验证
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 邀请码管理 -->
+      <div class="col-lg-4 mb-4">
+        <div class="glass-card h-100 p-4">
+          <h5 class="mb-4 fw-bold text-white"><i class="bi bi-ticket-perforated me-2 text-secondary"></i>邀请码</h5>
+          
+          <div class="bg-dark bg-opacity-50 p-3 rounded mb-4 border border-secondary border-opacity-25">
+            <label class="form-label small text-dim fw-bold">生成新码</label>
+            <div class="input-group mb-2">
+               <input type="text" class="form-control border-end-0" id="inviteNote" placeholder="备注 (可选)">
+               <button class="btn btn-secondary fw-bold px-3" onclick="createInvite()" style="border-left: none; background: var(--secondary); border-color: var(--secondary);">
+                <i class="bi bi-magic me-1"></i>
+               </button>
+            </div>
+          </div>
+          
+          <div class="d-flex justify-content-between align-items-center mb-2">
+             <small class="text-dim fw-bold text-uppercase" style="letter-spacing: 1px;">历史记录</small>
+             <button class="btn btn-link btn-sm text-decoration-none p-0 text-primary" onclick="loadInvites()">
+               <i class="bi bi-arrow-repeat"></i>
+             </button>
+          </div>
+          
+          <div id="invitesList" style="max-height: 400px; overflow-y: auto; padding-right: 5px;">
+            <div class="text-center py-4 text-dim small">暂无数据</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast 容器 -->
+  <div class="toast-container position-fixed top-0 end-0 p-3" id="toastContainer" style="z-index: 1060;"></div>
+
+  <!-- 编辑用户模态框 -->
+  <div class="modal fade" id="editUserModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header border-bottom-0 pb-0">
+          <h5 class="modal-title fw-bold text-white" id="editUserModalTitle">EDIT USER</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body pt-4">
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+               <label class="form-label small fw-bold text-dim">UUID</label>
+               <input type="text" class="form-control form-control-sm font-monospace text-dim" id="editUserId" readonly style="background: rgba(255,255,255,0.05);">
+            </div>
+            <div class="col-md-6">
+               <label class="form-label small fw-bold text-dim">Token</label>
+               <input type="text" class="form-control form-control-sm font-monospace text-dim" id="editUserToken" readonly style="background: rgba(255,255,255,0.05);">
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-dim">Student ID</label>
+            <input type="text" class="form-control" id="editUsername" required>
+          </div>
+          
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <div class="glass-card p-2 text-center h-100 d-flex align-items-center justify-content-center">
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="editAuthMode" id="editAuthModePassword" value="password_persist" checked>
+                      <label class="form-check-label small text-white" for="editAuthModePassword">Auto-Renew</label>
+                    </div>
+                </div>
+            </div>
+             <div class="col-md-6">
+                <div class="glass-card p-2 text-center h-100 d-flex align-items-center justify-content-center">
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="editAuthMode" id="editAuthModeCookie" value="cookie_only">
+                      <label class="form-check-label small text-dim" for="editAuthModeCookie">Cookie Only</label>
+                    </div>
+                </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-dim">Password</label>
+            <input type="password" class="form-control" id="editPassword" placeholder="Leave empty to keep current">
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-dim d-flex align-items-center">
+              Cookie
+              <button type="button" class="btn btn-link btn-sm p-0 ms-auto text-primary" onclick="showCookieHelp()">
+                <i class="bi bi-question-circle"></i> Help
+              </button>
+            </label>
+            <textarea class="form-control font-monospace" id="editCookie" rows="2" placeholder="Paste Cookie string here" style="font-size: 0.8rem;"></textarea>
+          </div>
+          
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label small fw-bold text-dim">Location Node</label>
+              <select class="form-select" id="editRaderAt">
+                <option value="ZJGD1">紫金港东一</option>
+                <option value="ZJGX1">紫金港西区</option>
+                <option value="ZJGB1">紫金港段永平</option>
+                <option value="ZJG4">紫金港大西区</option>
+                <option value="YQ4">玉泉教四</option>
+                <option value="YQ1">玉泉教一</option>
+                <option value="YQ7">玉泉教七</option>
+                <option value="YQSS">玉泉宿舍</option>
+                <option value="ZJ1">之江 1</option>
+                <option value="ZJ2">之江 2</option>
+                <option value="HJC1">华家池 1</option>
+                <option value="HJC2">华家池 2</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+               <label class="form-label small fw-bold text-dim">Cooldown (ms)</label>
+               <input type="number" class="form-control" id="editColdDownTime" value="4000">
+            </div>
+          </div>
+          
+          <div class="bg-dark bg-opacity-25 p-3 rounded mb-3 border border-secondary border-opacity-25">
+            <div class="form-check form-switch mb-2">
+              <input class="form-check-input" type="checkbox" id="editEnableSchedule">
+              <label class="form-check-label small fw-bold text-white" for="editEnableSchedule">Enable Scheduler</label>
+            </div>
+            <div class="input-group input-group-sm">
+              <input type="text" class="form-control text-center" id="editWindowStart" value="08:00">
+              <span class="input-group-text bg-transparent text-dim border-0">-</span>
+              <input type="text" class="form-control text-center" id="editWindowEnd" value="22:00">
+            </div>
+          </div>
+          
+          <div class="d-flex justify-content-between">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="editEnabled" checked>
+                <label class="form-check-label small text-white" for="editEnabled">Active</label>
+              </div>
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="editLogEmptyRollcall">
+                <label class="form-check-label small text-dim" for="editLogEmptyRollcall">Verbose Log</label>
+              </div>
+          </div>
+        </div>
+        <div class="modal-footer border-top-0 pt-0">
+          <button type="button" class="btn btn-outline-light rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary px-4 fw-bold rounded-pill" onclick="saveUser()">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 确认操作模态框 -->
+  <div class="modal fade" id="confirmModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content shadow-lg">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-bold text-white">
+             <i class="bi bi-exclamation-circle-fill text-warning me-2"></i>CONFIRM
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <p id="confirmModalMessage" class="mb-0 text-dim lh-base"></p>
+        </div>
+        <div class="modal-footer border-0 pt-0 px-4 pb-4">
+          <button type="button" class="btn btn-outline-light fw-bold px-4 rounded-pill" data-bs-dismiss="modal" id="btnConfirmCancel">Cancel</button>
+          <button type="button" class="btn btn-primary fw-bold px-4 rounded-pill" id="btnConfirmOk">Confirm</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 查看日志模态框 -->
+  <div class="modal fade" id="logsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content shadow-lg" style="height: 80vh;">
+        <div class="modal-header bg-dark text-white border-bottom-0">
+          <h5 class="modal-title font-monospace text-primary">
+            <i class="bi bi-terminal me-2"></i>LOGS: <span id="logsUsername" class="text-white"></span>
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-0 bg-dark position-relative">
+          <div class="p-2 border-bottom border-secondary d-flex justify-content-end bg-dark sticky-top" style="background: rgba(10,11,30,0.95);">
+             <button class="btn btn-sm btn-outline-danger me-2" onclick="clearLogs()">
+              <i class="bi bi-trash me-1"></i> CLEAR
+            </button>
+             <button class="btn btn-sm btn-outline-primary" onclick="refreshLogs()">
+              <i class="bi bi-arrow-clockwise me-1"></i> REFRESH
+            </button>
+          </div>
+          <div id="logsContent" class="h-100 p-3 font-monospace text-dim" style="overflow-y: auto; font-size: 0.85rem;">
+            <p class="text-dim text-center mt-5">Fetching data stream...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cookie 获取帮助模态框 -->
+  <div class="modal fade" id="cookieHelpModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header bg-primary text-white border-0">
+          <h5 class="modal-title fw-bold">
+            <i class="bi bi-cookie me-2"></i>Cookie Extraction
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-4 text-white">
+          <p class="text-dim">Run this in your browser console at courses.zju.edu.cn:</p>
+          <pre class="bg-dark p-3 rounded"><code id="cookieScript" class="text-success">copy(document.cookie); alert('Cookie Copied!');</code></pre>
+          <button class="btn btn-outline-light btn-sm" onclick="copyCookieScript()">Copy Code</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script>
+    let currentUserId = null;
+    let editUserModalInstance = null;
+    let logsModalInstance = null;
+    let confirmModalInstance = null;
+    let cookieHelpModalInstance = null;
+    let confirmResolver = null;
+
+    function escapeHtml(unsafe = "") {
+      return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function fetchApi(path, options = {}) {
+      const token = document.getElementById('token').value.trim();
+      const headers = { ...(options.headers || {}), "X-Token": token };
+      return fetch(`${location.origin}${path}`, { ...options, headers });
+    }
+
+    // 初始化
+    document.addEventListener('DOMContentLoaded', function() {
+      // 初始化时间选择器
+      flatpickr("#editWindowStart", {
+        enableTime: true,
+        noCalendar: true,
+        dateFormat: "H:i",
+        time_24hr: true,
+        defaultDate: "08:00"
+      });
+      flatpickr("#editWindowEnd", {
+        enableTime: true,
+        noCalendar: true,
+        dateFormat: "H:i",
+        time_24hr: true,
+        defaultDate: "22:00"
+      });
+
+      editUserModalInstance = new bootstrap.Modal(document.getElementById('editUserModal'));
+      logsModalInstance = new bootstrap.Modal(document.getElementById('logsModal'));
+      confirmModalInstance = new bootstrap.Modal(document.getElementById('confirmModal'));
+      cookieHelpModalInstance = new bootstrap.Modal(document.getElementById('cookieHelpModal'));
+      
+      document.getElementById('btnConfirmOk').addEventListener('click', () => {
+        if (confirmResolver) confirmResolver(true);
+        confirmModalInstance.hide();
+      });
+
+      document.getElementById('btnConfirmCancel').addEventListener('click', () => {
+        if (confirmResolver) confirmResolver(false);
+      });
+
+      document.getElementById('confirmModal').addEventListener('hidden.bs.modal', () => {
+        if (confirmResolver) {
+            confirmResolver(false);
+            confirmResolver = null;
+        }
+      });
+      
+      // 尝试从 localStorage 加载 token
+      const saved = localStorage.getItem('admin_token');
+      const remember = localStorage.getItem('admin_remember') === 'true';
+      if (saved && remember) {
+        document.getElementById('token').value = saved;
+        document.getElementById('rememberToken').checked = true;
+      }
+    });
+
+    function showCustomConfirm(message) {
+        return new Promise((resolve) => {
+            confirmResolver = resolve;
+            document.getElementById('confirmModalMessage').textContent = message;
+            confirmModalInstance.show();
+        });
+    }
+
+    function showCookieHelp() {
+      cookieHelpModalInstance.show();
+    }
+
+    function copyCookieScript() {
+      const script = document.getElementById('cookieScript').textContent;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(script).then(() => {
+          showToast('代码已复制，请到学在浙大控制台粘贴执行', 'success');
+        }).catch(() => {
+          fallbackCopyTextToClipboard(script);
+        });
+      } else {
+        fallbackCopyTextToClipboard(script);
+      }
+    }
+
+    function showToast(message, type = 'info') {
+      const icon = type === 'success' ? 'check-circle-fill' : type === 'error' ? 'x-circle-fill' : 'info-circle-fill';
+      const colorClass = type === 'success' ? 'bg-success' : type === 'error' ? 'bg-danger' : 'bg-primary';
+      
+      const toastHtml = `
+        <div class="toast align-items-center text-white ${colorClass} border-0" role="alert">
+          <div class="d-flex">
+            <div class="toast-body d-flex align-items-center">
+              <i class="bi bi-${icon} me-2 fs-5"></i>
+              ${message}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+          </div>
+        </div>
+      `;
+      const container = document.getElementById('toastContainer');
+      container.insertAdjacentHTML('beforeend', toastHtml);
+      const toastEl = container.lastElementChild;
+      const toast = new bootstrap.Toast(toastEl, { delay: 3000 });
+      toast.show();
+      toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+    }
+
+    function toggleTokenVisibility() {
+      const input = document.getElementById('token');
+      const eye = document.getElementById('tokenEye');
+      if (input.type === 'password') {
+        input.type = 'text';
+        eye.className = 'bi bi-eye-slash';
+      } else {
+        input.type = 'password';
+        eye.className = 'bi bi-eye';
+      }
+    }
+
+    async function loadDashboard() {
+      const token = document.getElementById('token').value.trim();
+      if (!token) {
+        showToast('请先输入管理口令', 'error');
+        return;
+      }
+
+      // 保存 token
+      const remember = document.getElementById('rememberToken').checked;
+      if (remember) {
+        localStorage.setItem('admin_token', token);
+        localStorage.setItem('admin_remember', 'true');
+      } else {
+        localStorage.removeItem('admin_token');
+        localStorage.removeItem('admin_remember');
+      }
+
+      await loadUsers();
+      await loadInvites();
+    }
+
+    async function loadUsers() {
+      try {
+        const res = await fetchApi('/admin/users');
+        const data = await res.json();
+        
+        if (!data.ok) {
+          showToast(data.message || '加载失败', 'error');
+          return;
+        }
+
+        const users = data.users || [];
+        updateStats(users);
+        renderUsersTable(users);
+        document.getElementById('statsRow').style.display = 'flex';
+      } catch (e) {
+        showToast('请求失败: ' + e.message, 'error');
+      }
+    }
+
+    function updateStats(users) {
+      document.getElementById('statTotal').textContent = users.length;
+      
+      let running = 0, scheduled = 0, stopped = 0;
+      users.forEach(u => {
+        if (u.enableSchedule) scheduled++;
+        if (u.running) running++;
+        else stopped++;
+      });
+      
+      document.getElementById('statRunning').textContent = running;
+      document.getElementById('statScheduled').textContent = scheduled;
+      document.getElementById('statStopped').textContent = stopped;
+    }
+
+    function renderUsersTable(users) {
+      const tbody = document.getElementById('usersTableBody');
+      if (users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-dim py-5">暂无数据</td></tr>';
+        return;
+      }
+
+          tbody.innerHTML = users.map(u => `
+            <tr>
+              <td class="ps-4">
+                <div class="fw-bold text-white">${escapeHtml(u.username || 'Unnamed')}</div>
+                <div class="d-flex align-items-center mt-1" style="font-size: 0.75rem;">
+                   <span class="text-dim me-1">ID:</span>
+                   <code class="text-dim me-1" title="${escapeHtml(u.id)}" style="cursor: help;">${escapeHtml(u.id.slice(0, 8))}...</code>
+                   <button class="btn btn-link btn-sm p-0 text-primary" onclick="copyId('${escapeHtml(u.id)}')" title="复制完整ID">
+                     <i class="bi bi-clipboard" style="font-size: 0.75rem;"></i>
+                   </button>
+                </div>
+                <div class="d-flex align-items-center mt-1">
+                   <span class="user-token-badge" title="${escapeHtml(u.userToken)}" style="cursor: help;">${u.userToken ? escapeHtml(u.userToken.slice(0, 10)) + '...' : '-'}</span>
+                   <button class="btn btn-link btn-sm p-0 ms-2 text-primary" onclick="copyUserToken('${escapeHtml(u.userToken)}')" title="复制完整凭证">
+                     <i class="bi bi-clipboard"></i>
+                   </button>
+                </div>
+              </td>
+          <td>
+            <div class="d-flex align-items-center">
+               <span class="status-badge-dot" style="background-color: ${u.running ? '#2dff78' : '#6c757d'}; box-shadow: 0 0 10px ${u.running ? '#2dff78' : 'transparent'};"></span>
+               <span class="small ${u.running ? 'text-success fw-bold' : 'text-dim'}">
+                 ${u.running ? '运行中' : '已停止'}
+               </span>
+            </div>
+          </td>
+          <td>
+            ${u.authMode === 'cookie_only' 
+              ? `<span class="badge rounded-pill bg-secondary bg-opacity-25 border border-secondary text-dim">Cookie</span>`
+              : `<span class="badge rounded-pill bg-primary bg-opacity-25 border border-primary text-primary">自动</span>`}
+            ${u.authExpired ? '<span class="badge bg-warning text-dark ms-1">过期</span>' : ''}
+          </td>
+          <td>
+            ${u.enableSchedule 
+              ? `<span class="badge bg-info bg-opacity-10 text-info border border-info px-2 py-1"><i class="bi bi-clock me-1"></i>${u.windowStart} - ${u.windowEnd}</span>` 
+              : '<span class="badge bg-transparent text-dim border border-secondary px-2 py-1">手动</span>'}
+          </td>
+              <td><code class="text-primary">${escapeHtml(u.raderAt || 'ZJGD1')}</code></td>
+              <td class="text-end pe-4">
+                <div class="btn-group shadow-sm">
+                  <button class="btn btn-sm btn-outline-success" onclick="startUser('${escapeHtml(u.id)}')" title="启动">
+                    <i class="bi bi-play-fill"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-secondary" onclick="stopUser('${escapeHtml(u.id)}')" title="停止">
+                    <i class="bi bi-stop-fill"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-primary" onclick="editUser('${escapeHtml(u.id)}')" title="编辑">
+                    <i class="bi bi-pencil-fill"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-info" onclick="viewLogs('${escapeHtml(u.id)}', '${escapeHtml(u.username)}')" title="日志">
+                    <i class="bi bi-terminal-fill"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-danger" onclick="deleteUser('${escapeHtml(u.id)}', '${escapeHtml(u.username)}')" title="删除">
+                    <i class="bi bi-trash-fill"></i>
+                  </button>
+                </div>
+              </td>
+        </tr>
+      `).join('');
+    }
+
+    function copyId(id) {
+      if (!id) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(id).then(() => {
+          showToast('ID 已复制', 'success');
+        }).catch(() => {
+          fallbackCopyTextToClipboard(id);
+        });
+      } else {
+        fallbackCopyTextToClipboard(id);
+      }
+    }
+
+    function copyUserToken(token) {
+      if (!token) return showToast('无 Token', 'error');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(token).then(() => {
+          showToast('Token 已复制', 'success');
+        }).catch(() => {
+          fallbackCopyTextToClipboard(token);
+        });
+      } else {
+        fallbackCopyTextToClipboard(token);
+      }
+    }
+
+    function copyInviteCode(code) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(code).then(() => {
+          showToast('邀请码已复制', 'success');
+        }).catch(() => {
+          fallbackCopyTextToClipboard(code);
+        });
+      } else {
+        fallbackCopyTextToClipboard(code);
+      }
+    }
+
+    function fallbackCopyTextToClipboard(text) {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      
+      // 避免滚动到底部
+      textArea.style.top = "0";
+      textArea.style.left = "0";
+      textArea.style.position = "fixed";
+
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+
+      try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+          showToast('已复制', 'success');
+        } else {
+          showToast('复制失败', 'error');
+        }
+      } catch (err) {
+        showToast('复制失败', 'error');
+      }
+
+      document.body.removeChild(textArea);
+    }
+
+    async function startUser(id, forceOverride = false) {
+      try {
+        const res = await fetchApi(`/admin/users/${id}/start`, { 
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ forceOverride })
+        });
+        const data = await res.json();
+        
+        // 如果需要管理员确认
+        if (data.needConfirm) {
+          const confirmed = await showCustomConfirm(data.message);
+          if (confirmed) {
+            // 管理员确认，带上 forceOverride 重新请求
+            return startUser(id, true);
+          } else {
+            showToast('已取消', 'info');
+            return;
+          }
+        }
+        
+        showToast(data.ok ? '已启动' : data.message, data.ok ? 'success' : 'error');
+        if (data.ok) loadUsers();
+      } catch (e) {
+        showToast('错误: ' + e.message, 'error');
+      }
+    }
+
+    async function stopUser(id, forceOverride = false) {
+      try {
+        const res = await fetchApi(`/admin/users/${id}/stop`, { 
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ forceOverride })
+        });
+        const data = await res.json();
+        
+        // 如果需要管理员确认
+        if (data.needConfirm) {
+          const confirmed = await showCustomConfirm(data.message);
+          if (confirmed) {
+            // 管理员确认，带上 forceOverride 重新请求
+            return stopUser(id, true);
+          } else {
+            showToast('已取消', 'info');
+            return;
+          }
+        }
+        
+        showToast(data.ok ? '已停止' : data.message, data.ok ? 'success' : 'error');
+        if (data.ok) loadUsers();
+      } catch (e) {
+        showToast('错误: ' + e.message, 'error');
+      }
+    }
+
+    function showAddUserModal() {
+      currentUserId = null;
+      document.getElementById('editUserModalTitle').textContent = '添加新用户';
+      document.getElementById('editUserId').value = 'AUTO_GEN';
+      document.getElementById('editUserToken').value = 'AUTO_GEN';
+      document.getElementById('editUsername').value = '';
+      document.getElementById('editPassword').value = '';
+      document.getElementById('editAuthModePassword').checked = true;
+      document.getElementById('editCookie').value = '';
+      document.getElementById('editRaderAt').value = 'ZJGD1';
+      document.getElementById('editColdDownTime').value = '4000';
+      document.getElementById('editLogEmptyRollcall').checked = false;
+      
+      const startInput = document.getElementById('editWindowStart');
+      const endInput = document.getElementById('editWindowEnd');
+      if(startInput._flatpickr) startInput._flatpickr.setDate('08:00');
+      else startInput.value = '08:00';
+      
+      if(endInput._flatpickr) endInput._flatpickr.setDate('22:00');
+      else endInput.value = '22:00';
+
+      document.getElementById('editEnableSchedule').checked = false;
+      document.getElementById('editEnabled').checked = true;
+      editUserModalInstance.show();
+    }
+
+    async function editUser(id) {
+      currentUserId = id;
+      document.getElementById('editUserModalTitle').textContent = '编辑用户配置';
+      
+      try {
+        const res = await fetchApi(`/admin/users/${id}/status`);
+        const data = await res.json();
+        if (!data.ok) {
+          showToast('加载用户失败', 'error');
+          return;
+        }
+
+        const u = data.user;
+        document.getElementById('editUserId').value = u.id;
+        document.getElementById('editUserToken').value = u.userToken || '';
+        document.getElementById('editUsername').value = u.username || '';
+        document.getElementById('editPassword').value = '';
+        document.getElementById('editCookie').value = '';
+        if (u.authMode === 'cookie_only') {
+          document.getElementById('editAuthModeCookie').checked = true;
+        } else {
+          document.getElementById('editAuthModePassword').checked = true;
+        }
+        document.getElementById('editRaderAt').value = u.raderAt || 'ZJGD1';
+        document.getElementById('editColdDownTime').value = u.coldDownTime || 4000;
+        const startInput = document.getElementById('editWindowStart');
+        const endInput = document.getElementById('editWindowEnd');
+        if(startInput._flatpickr) startInput._flatpickr.setDate(u.windowStart || '08:00');
+        else startInput.value = u.windowStart || '08:00';
+        
+        if(endInput._flatpickr) endInput._flatpickr.setDate(u.windowEnd || '22:00');
+        else endInput.value = u.windowEnd || '22:00';
+        document.getElementById('editEnableSchedule').checked = u.enableSchedule || false;
+        document.getElementById('editEnabled').checked = u.enabled !== false;
+        document.getElementById('editLogEmptyRollcall').checked = !!u.logEmptyRollcall;
+        
+        editUserModalInstance.show();
+      } catch (e) {
+        showToast('错误: ' + e.message, 'error');
+      }
+    }
+
+    async function saveUser() {
+      const idVal = document.getElementById('editUserId').value;
+      const isNew = idVal === 'AUTO_GEN';
+      
+      const body = {
+        id: isNew ? undefined : idVal,
+        username: document.getElementById('editUsername').value.trim(),
+        password: document.getElementById('editPassword').value || undefined,
+        cookie: document.getElementById('editCookie').value || undefined,
+        authMode: document.querySelector('input[name="editAuthMode"]:checked')?.value || 'password_persist',
+        raderAt: document.getElementById('editRaderAt').value,
+        coldDownTime: Number(document.getElementById('editColdDownTime').value),
+        windowStart: document.getElementById('editWindowStart').value,
+        windowEnd: document.getElementById('editWindowEnd').value,
+        enableSchedule: document.getElementById('editEnableSchedule').checked,
+        enabled: document.getElementById('editEnabled').checked,
+        logEmptyRollcall: document.getElementById('editLogEmptyRollcall').checked,
+      };
+
+      if (body.authMode === 'cookie_only' && !body.cookie && !body.id) {
+        showToast('需要 Cookie', 'error');
+        return;
+      }
+      if (body.authMode === 'password_persist' && !body.password && !body.id) {
+        showToast('需要密码', 'error');
+        return;
+      }
+
+      if (!body.username) {
+        showToast('需要学号', 'error');
+        return;
+      }
+
+      if (body.enableSchedule && body.windowStart > body.windowEnd) {
+        const confirmed = await showCustomConfirm(
+          `计划跨越午夜 (${body.windowStart} - ${body.windowEnd}).\n\n继续?`
+        );
+        if (!confirmed) {
+          showToast('已取消', 'info');
+          return;
+        }
+      }
+
+      try {
+        const res = await fetchApi('/admin/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        showToast(data.ok ? '已保存' : data.message, data.ok ? 'success' : 'error');
+        if (data.ok) {
+          editUserModalInstance.hide();
+          loadUsers();
+        }
+      } catch (e) {
+        showToast('错误: ' + e.message, 'error');
+      }
+    }
+
+    async function deleteUser(id, username) {
+      const confirmed = await showCustomConfirm(`删除用户 ${username}?\n此操作无法撤销。`);
+      if (!confirmed) return;
+      
+      try {
+        const res = await fetchApi(`/admin/users/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        showToast(data.ok ? '已删除' : data.message, data.ok ? 'success' : 'error');
+        if (data.ok) loadUsers();
+      } catch (e) {
+        showToast('错误: ' + e.message, 'error');
+      }
+    }
+
+    async function viewLogs(id, username) {
+      currentUserId = id;
+      document.getElementById('logsUsername').textContent = username;
+      logsModalInstance.show();
+      await refreshLogs();
+    }
+
+    async function refreshLogs() {
+      if (!currentUserId) return;
+      
+      const content = document.getElementById('logsContent');
+      // 注意：这里不清空 content 显示 "加载中"，以保留上次日志体验，除非是空状态
+      
+      try {
+        const res = await fetchApi(`/admin/users/${currentUserId}/logs`);
+        const data = await res.json();
+        
+        if (!data.ok) {
+          content.innerHTML = `<p class="text-danger text-center mt-5">${data.message || 'Error'}</p>`;
+          return;
+        }
+
+        const logs = data.logs || [];
+        if (logs.length === 0) {
+          content.innerHTML = '<p class="text-dim text-center mt-5">暂无日志</p>';
+          return;
+        }
+
+        // 反转日志顺序，最新的显示在最上面
+        const reversedLogs = [...logs].reverse();
+
+        content.innerHTML = reversedLogs.map(log => {
+          const ts = new Date(log.ts);
+          const datePart = ts.toLocaleDateString("zh-CN");
+          const timePart = ts.toLocaleTimeString("zh-CN", { hour12: false });
+          const formattedTime = `${datePart} ${timePart}`;
+          let color = '#d4d4d4';
+          if(log.level === 'success') color = '#2dff78';
+          else if(log.level === 'error') color = '#ff0055';
+          else if(log.level === 'warn') color = '#fbbf24';
+          
+          return `
+            <div class="mb-1 text-break">
+              <span class="text-dim me-2">[${formattedTime}]</span>
+              <span style="color: ${color}; font-weight: bold; margin-right: 5px;">${log.level.toUpperCase()}</span>
+              <span>${escapeHtml(log.message)}</span>
+            </div>
+          `;
+        }).join('');
+        
+        // 滚动到顶部以显示最新日志
+        content.scrollTop = 0;
+      } catch (e) {
+        content.innerHTML = `<p class="text-danger text-center mt-5">错误: ${e.message}</p>`;
+      }
+    }
+
+    async function clearLogs() {
+      if (!currentUserId) return;
+      const confirmed = await showCustomConfirm('清空该用户所有日志?');
+      if (!confirmed) return;
+      
+      try {
+        const res = await fetchApi(`/admin/users/${currentUserId}/logs`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.ok) {
+          showToast('日志已清空', 'success');
+          refreshLogs();
+        } else {
+          showToast(data.message || '失败', 'error');
+        }
+      } catch (e) {
+        showToast('错误: ' + e.message, 'error');
+      }
+    }
+
+    async function loadInvites() {
+      try {
+        const res = await fetchApi('/admin/invites');
+        const data = await res.json();
+        
+        if (!data.ok) return;
+
+        const invites = data.invites || [];
+        const container = document.getElementById('invitesList');
+        
+        if (invites.length === 0) {
+          container.innerHTML = '<p class="text-dim text-center py-3">暂无数据</p>';
+          return;
+        }
+
+        container.innerHTML = invites.map(inv => `
+          <div class="card mb-2 border-0 shadow-sm glass-card ${inv.used ? 'opacity-50' : 'border-start border-4 border-success'}" style="${inv.used ? '' : 'border-color: #2dff78 !important;'}">
+            <div class="card-body p-3">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                   ${inv.used 
+                     ? '<span class="badge bg-secondary">已使用</span>' 
+                     : '<span class="badge bg-success text-dark">有效</span>'}
+                   <span class="ms-2 fw-bold text-white small">${escapeHtml(inv.note || '无备注')}</span>
+                </div>
+                <small class="text-dim" style="font-size: 0.75rem;">${new Date(inv.createdAt).toLocaleDateString()}</small>
+              </div>
+              
+              ${inv.code ? `
+                <div class="input-group input-group-sm">
+                  <input type="text" class="form-control font-monospace bg-dark text-dim border-end-0" value="${escapeHtml(inv.code)}" readonly>
+                  <button class="btn btn-outline-secondary border-start-0" onclick="copyInviteCode('${escapeHtml(inv.code)}')">
+                    <i class="bi bi-clipboard"></i>
+                  </button>
+                  <button class="btn btn-outline-danger border-start-0" onclick="deleteInvite('${escapeHtml(inv.code)}')">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </div>
+              ` : '<small class="text-dim fst-italic">Hidden</small>'}
+              
+              ${inv.used ? `<div class="mt-2 small text-dim"><i class="bi bi-person-fill me-1"></i>User: ${escapeHtml(inv.usedBy || 'Unknown')}</div>` : ''}
+            </div>
+          </div>
+        `).join('');
+      } catch (e) {
+        console.error('Load Invites Error:', e);
+      }
+    }
+
+    async function createInvite() {
+      const note = document.getElementById('inviteNote').value.trim();
+      
+      try {
+        const res = await fetchApi('/admin/invites', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ note: note || undefined }),
+        });
+        const data = await res.json();
+        
+        if (data.ok) {
+          showToast('邀请码已生成', 'success');
+          document.getElementById('inviteNote').value = '';
+          
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(data.invite.code).then(() => {
+              showToast('已复制到剪贴板', 'info');
+            }).catch(() => {});
+          } else {
+             fallbackCopyTextToClipboard(data.invite.code);
+          }
+          
+          loadInvites();
+        } else {
+          showToast(data.message || '失败', 'error');
+        }
+      } catch (e) {
+        showToast('错误: ' + e.message, 'error');
+      }
+    }
+
+    async function deleteInvite(code) {
+      const confirmed = await showCustomConfirm('确定要删除此邀请码吗？');
+      if (!confirmed) return;
+
+      try {
+        const res = await fetchApi(`/admin/invites/${code}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.ok) {
+          showToast('邀请码已删除', 'success');
+          loadInvites();
+        } else {
+          showToast(data.message || '删除失败', 'error');
+        }
+      } catch (e) {
+        showToast('错误: ' + e.message, 'error');
+      }
+    }
+
+    function copyInviteCode(code) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(code).then(() => {
+          showToast('已复制', 'success');
+        }).catch(() => {
+          fallbackCopyTextToClipboard(code);
+        });
+      } else {
+        fallbackCopyTextToClipboard(code);
+      }
+    }
+  </script>
+</body>
+</html>

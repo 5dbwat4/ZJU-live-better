@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZJU 云助理 | 智慧校园助手</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Noto+Sans+SC:wght@300;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="aurora-bg"></div>
+    <div class="grid-bg"></div>
+    <canvas id="particleCanvas"></canvas>
+
+    <div class="container">
+        <h1>ZJU Cloud Assistant</h1>
+        <div class="subtitle">
+            <span id="typewriter"></span><span class="cursor">|</span>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h3><i>⚡</i> 自动签到</h3>
+                <p>全自动化的课程与健康签到流程。即使在睡梦中，我们也为您守护全勤记录。告别繁琐，拥抱高效。</p>
+            </div>
+            <div class="card">
+                <h3><i>🛡️</i> 隐私优先</h3>
+                <p>本地化数据加密存储，所有敏感信息几乎仅在您与浙大服务器之间传输，服务器不存储您的明文密码。您的数据完全属于您自己。</p>
+            </div>
+            <div class="card">
+                <h3><i>🔔</i> 实时通知</h3>
+                <p>集成钉钉推送服务。每一次成功的操作都会及时送达，让您时刻掌握系统运行状态。</p>
+            </div>
+        </div>
+
+        <div class="actions">
+            <a href="./user.html" class="btn">
+                <span>🚀</span> 进入用户面板
+            </a>
+            <a href="./how-it-works.html" class="btn" style="--primary: #2dff78; border-color: rgba(45, 255, 120, 0.3);">
+                <span>📖</span> 工作原理
+            </a>
+        </div>
+    </div>
+
+    <footer>
+        <p>© 2025 ZJU Auto Sign-in Project. Designed for Efficiency.</p>
+        <p style="margin-top: 0.5rem; opacity: 0.6;">System Status: <span style="color: #2dff78; text-shadow: 0 0 10px #2dff78;">● Online</span></p>
+        <a href="./admin.html" class="admin-link">Admin Entry</a>
+    </footer>
+
+    <script>
+        // 打字机效果
+        const text = "Automating your campus life, one check-in at a time.";
+        const typeWriterElement = document.getElementById('typewriter');
+        let i = 0;
+
+        function typeWriter() {
+            if (i < text.length) {
+                typeWriterElement.textContent += text.charAt(i);
+                i++;
+                setTimeout(typeWriter, 40);
+            }
+        }
+        setTimeout(typeWriter, 500);
+    </script>
+    <script src="js/particles.js"></script>
+</body>
+</html>
