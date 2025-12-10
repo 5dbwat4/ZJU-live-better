@@ -3,6 +3,8 @@ import { v4 as uuidv4 } from "uuid";
 import "dotenv/config";
 import crypto from "crypto";
 import dingTalk from "../shared/dingtalk-webhook.js";
+import Decimal from "decimal.js";
+Decimal.set({ precision: 100 });
 
 const CONFIG = {
   raderAt: "ZJGD1",
@@ -28,7 +30,7 @@ const RaderInfo = {
 
 // 成功率：目前【雷达点名】+【已配置了雷达地点】的情况可以100%签到成功
 //        数字点名已测试，已成功，确定远程没有限速，没有calm down，但是目前单线程，可能会有点慢，
-//        三点定位法还没写
+//        三点定位法已完成，感谢@eWloYW8
 
 // 顺便一提，经测试，rader_out_of_scope的限制是500米整
 
@@ -142,99 +144,164 @@ let we_are_bruteforcing = [];
   }
 })();
 
+function decimalHaversineDist(lon, lat, lon_i, lat_i, R) {
+  const DEG = Decimal.acos(-1).div(180);
+
+  const λ  = new Decimal(lon).mul(DEG);
+  const φ  = new Decimal(lat).mul(DEG);
+  const λi = new Decimal(lon_i).mul(DEG);
+  const φi = new Decimal(lat_i).mul(DEG);
+
+  const dφ = φ.minus(φi);
+  const dλ = λ.minus(λi);
+
+  const sin_dφ_2 = dφ.div(2).sin().pow(2);
+  const sin_dλ_2 = dλ.div(2).sin().pow(2);
+
+  const h = sin_dφ_2.plus(
+    φ.cos().mul(φi.cos()).mul(sin_dλ_2)
+  );
+
+  const deltaSigma = Decimal.asin(h.sqrt()).mul(2);
+
+  return R.mul(deltaSigma);
+}
+
+function residualsDecimal(lon, lat, pts, R) {
+  const res = [];
+
+  for (const p of pts) {
+    const dist = decimalHaversineDist(lon, lat, p.lon, p.lat, R);
+    res.push(new Decimal(p.d).minus(dist));
+  }
+  return res;
+}
+
+function jacobianDecimal(lon, lat, pts, R) {
+  const eps = new Decimal("1e-12");
+
+  const base = residualsDecimal(lon, lat, pts, R);
+
+  const resLon = residualsDecimal(
+    new Decimal(lon).plus(eps),
+    lat,
+    pts,
+    R
+  );
+  const resLat = residualsDecimal(
+    lon,
+    new Decimal(lat).plus(eps),
+    pts,
+    R
+  );
+
+  const J = [];
+  for (let i = 0; i < pts.length; i++) {
+    const dLon = resLon[i].minus(base[i]).div(eps).neg();
+    const dLat = resLat[i].minus(base[i]).div(eps).neg();
+    J.push([dLon, dLat]);
+  }
+  return J;
+}
+
+function gaussNewtonDecimal(pts, lon0, lat0, R) {
+  let lon = new Decimal(lon0);
+  let lat = new Decimal(lat0);
+
+  for (let iter = 0; iter < 30; iter++) {
+    const r = residualsDecimal(lon, lat, pts, R);
+    const J = jacobianDecimal(lon, lat, pts, R);
+
+    let JTJ = [
+      [new Decimal(0), new Decimal(0)],
+      [new Decimal(0), new Decimal(0)]
+    ];
+    let JTr = [new Decimal(0), new Decimal(0)];
+
+    for (let i = 0; i < pts.length; i++) {
+      const j = J[i];
+      const ri = r[i];
+
+      JTJ[0][0] = JTJ[0][0].plus(j[0].mul(j[0]));
+      JTJ[0][1] = JTJ[0][1].plus(j[0].mul(j[1]));
+      JTJ[1][0] = JTJ[1][0].plus(j[1].mul(j[0]));
+      JTJ[1][1] = JTJ[1][1].plus(j[1].mul(j[1]));
+
+      JTr[0] = JTr[0].plus(j[0].mul(ri));
+      JTr[1] = JTr[1].plus(j[1].mul(ri));
+    }
+
+    const det = JTJ[0][0].mul(JTJ[1][1]).minus(
+      JTJ[0][1].mul(JTJ[1][0])
+    );
+
+    const inv = [
+      [
+        JTJ[1][1].div(det),
+        JTJ[0][1].neg().div(det)
+      ],
+      [
+        JTJ[1][0].neg().div(det),
+        JTJ[0][0].div(det)
+      ]
+    ];
+
+    const dLon = inv[0][0].mul(JTr[0]).plus(inv[0][1].mul(JTr[1]));
+    const dLat = inv[1][0].mul(JTr[0]).plus(inv[1][1].mul(JTr[1]));
+
+    lon = lon.plus(dLon);
+    lat = lat.plus(dLat);
+
+    console.log(`[Iter ${iter}] lon = ${lon}, lat = ${lat}`);
+
+    // 收敛条件
+    if (dLon.abs().lt("1e-14") && dLat.abs().lt("1e-14")) break;
+  }
+
+  return { lon, lat };
+}
+
+function rmsDecimal(lon, lat, pts, R) {
+  let sum = new Decimal(0);
+
+  for (const p of pts) {
+    const dModel = decimalHaversineDist(lon, lat, p.lon, p.lat, R);
+    const diff = new Decimal(p.d).minus(dModel);
+    sum = sum.plus(diff.mul(diff));
+  }
+
+  return sum.div(pts.length).sqrt(); 
+}
+
+function solveSphereLeastSquaresDecimal(rawPoints) {
+
+  const lon0 = rawPoints.reduce((s,p)=>s+p.lon,0) / rawPoints.length;
+  const lat0 = rawPoints.reduce((s,p)=>s+p.lat,0) / rawPoints.length;
+
+  const R = new Decimal("6372999.26");
+
+  const res = gaussNewtonDecimal(rawPoints, lon0, lat0, R);
+
+  const rms = rmsDecimal(res.lon, res.lat, rawPoints, R);
+
+  return {
+    lon: Number(res.lon),
+    lat: Number(res.lat),
+    rms: Number(rms)
+  };
+}
+
 
 async function answerRaderRollcall(raderXY, rid) {
-  async function _req(x, y) {
-    return await courses
-      .fetch(
-        "https://courses.zju.edu.cn/api/rollcall/" +
-        rid +
-        "/answer?api_version=1.1.2",
-        {
-          body: JSON.stringify({
-            deviceId: uuidv4(),
-            latitude: y,
-            longitude: x,
-            speed: null,
-            accuracy: 68,
-            altitude: null,
-            altitudeAccuracy: null,
-            heading: null,
-          }),
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      )
-      .then(async (v) => {
-        try {
-          return await v.json()
-        } catch (e) {
-          console.log("[-][Auto Sign-in] Oh no..", e);
-        }
-      })
-  }
-  let rader_outcome = []
 
-  // Step 1: Try the configured Rader location
-  const RaderXY = RaderInfo[CONFIG.raderAt];
-  if (RaderXY) {
-    const outcome = await _req(RaderXY[0], RaderXY[1]);
-    if (outcome.status_name == "on_call_fine") {
-      sendBoth(
-        "[Auto Sign-in] Trying configured Rader location: " +
-        CONFIG.raderAt +
-        " with outcome: ",
-        outcome
-      );
-      return true;
-
-    } else {
-      console.log(
-        "[Auto Sign-in] Failed to get outcome from configured Rader location: " +
-        CONFIG.raderAt,
-        outcome
-      );
-    }
-    rader_outcome.push([RaderXY,outcome]);
-  }
-
-  // Step 2: Try all Rader locations
-  for (const [key, value] of Object.entries(RaderInfo)) {
-    // if (key == CONFIG.raderAt) continue; // Skip the configured Rader location
-    console.log("[Auto Sign-in] Trying Rader location: " + key);
-    // console.log(value[0],value[1]);
-    
-    const outcome = await _req(value[0], value[1]);
-    if (outcome.status_name == "on_call_fine") {
-      sendBoth(
-        "[Auto Sign-in] Congradulations! You are on the call at Rader location: " +
-        key
-      );
-      return true;
-    }
-    rader_outcome.push([value,outcome]);
-  }
-
-  // Step 3: If all Rader locations failed, try three-point triangulation
-  if (rader_outcome.length > 3) {
-    const XYList = rader_outcome.filter(v=>v[1].error_code=="radar_out_of_rollcall_scope").map((v)=>{
-      return [v[0][0], v[0][1],v[1].distance];
-    })
-    // Find the exact distance of the center 
-
-  }
-  return await courses
-    .fetch(
-      "https://courses.zju.edu.cn/api/rollcall/" +
-      rid +
-      "/answer?api_version=1.1.2",
+  async function _req(lon, lat) {
+    return await courses.fetch(
+      "https://courses.zju.edu.cn/api/rollcall/" + rid + "/answer?api_version=1.1.2",
       {
         body: JSON.stringify({
           deviceId: uuidv4(),
-          latitude: raderXY[1],
-          longitude: raderXY[0],
+          latitude: lat,
+          longitude: lon,
           speed: null,
           accuracy: 68,
           altitude: null,
@@ -242,50 +309,61 @@ async function answerRaderRollcall(raderXY, rid) {
           heading: null,
         }),
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" }
       }
-    )
-    .then((v) => v.text())
-    .then((fa) => {
-      // console.log(
-      //   "[Auto Sign-in] Rader Rollcall answered with an outcome of: ",
-      //   fa
-      // );
-      try {
-        const outcome = JSON.parse(fa);
-        if (outcome.status_name == "on_call_fine") {
-          console.log("[Auto Sign-in] Congradulations! You are on the call.");
-          // dingTalk(`[Auto Sign-in] Rader Rollcall ${rollcallId} succeeded: on call fine.`);
-        }
-      } catch (e) {
-        console.log(
-          "[Auto Sign-in] Rader Rollcall resulted with unknown outcome: ",
-          fa
-        );
-        sendBoth(`[Auto Sign-in] Rader Rollcall ${rollcallId} resulted with unknown outcome: ${fa}`);
-      }
-
-      /*It should be:
-      {
-    "distance": 304.71523221805245,
-    "id": 4949903,
-    "status": "on_call",
-    "status_name": "on_call_fine"
-}
-    or
-
-    {
-    "distance": 609.7890115916947,
-    "error_code": "radar_out_of_rollcall_scope",
-    "id": 4949903,
-    "message": "out of rollcall scope",
-    "status_name": "absent"
-}
-
-*/
+    ).then(async v => {
+      try { return await v.json(); }
+      catch (e) { console.log("[Autosign][JSON error]", e); return null; }
     });
+  }
+
+  let rader_outcome = [];
+
+  // Step 1: try configured location
+  if (raderXY) {
+    const outcome = await _req(raderXY[0], raderXY[1]);
+    console.log("[Autosign][Try Config]", raderXY, outcome);
+    if (outcome?.status_name === "on_call_fine") return true;
+    rader_outcome.push([raderXY, outcome]);
+  }
+
+  // Step 2: try all radar beacon points
+  for (const [key, value] of Object.entries(RaderInfo)) {
+    const outcome = await _req(value[0], value[1]);
+    console.log("[Autosign][Try Beacon]", key, value, outcome);
+
+    if (outcome?.status_name === "on_call_fine") return true;
+    rader_outcome.push([value, outcome]);
+  }
+
+  // Step 3: spherical Nelder-Mead trilateration
+  let rawPoints = [];
+
+  for (const [coord, outcome] of rader_outcome) {
+    const d = Number(outcome?.distance ?? outcome?.data?.distance ?? outcome?.result?.distance);
+    if (Number.isFinite(d) && d > 0) {
+      rawPoints.push({ lon: coord[0], lat: coord[1], d });
+      console.log("[Autosign][Dist Point]", coord, "d =", d);
+    }
+  }
+
+  if (rawPoints.length < 3) {
+    console.log("[Autosign][SphereFit] Not enough points.");
+    return false;
+  }
+
+  const est = solveSphereLeastSquaresDecimal(rawPoints);
+
+  console.log("[Autosign][SphereFit] Estimated:", est);
+
+  const finalOutcome = await _req(est.lon, est.lat);
+
+  if (finalOutcome?.status_name === "on_call_fine") {
+    sendBoth(`[Autosign] Estimated position success: ${est.lon}, ${est.lat}`);
+    return true;
+  }
+
+  return false;
 }
 
 async function answerNumberRollcall(numberCode, rid) {
@@ -384,7 +462,3 @@ async function batchNumberRollCall(rid) {
   }
 }
 
-
-// answerRaderRollcall(RaderInfo[CONFIG.raderAt], 171632);
-
-// fetch()
