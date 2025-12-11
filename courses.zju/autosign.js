@@ -24,6 +24,27 @@ const RaderInfo = {
   YQSS: [120.124001,30.265735], //虽然大概不会有课在宿舍上但还是放一个点位
   ZJG4: [120.073427,30.299757], //紫金港大西区
 };
+
+// 扩展基站：用于在全省范围内提供高精度定位覆盖
+// 包含浙大在省内的各个分校区及关键几何支撑点
+const ExtendedRaderInfo = {
+  // 1. 东翼支撑：浙大舟山校区 (真实存在)
+  ZHOUSHAN: [122.205200, 29.992600], 
+
+  // 2. 东北支撑：浙大海宁国际校区 (真实存在)
+  HAINING: [120.718500, 30.517300],
+
+  // 3. 东南支撑：浙大宁波理工学院 (真实存在)
+  NINGBO: [121.559600, 29.803700],
+
+  // 4. 南翼锚点：温州 (模拟虚拟基站)
+  // 作用：极其关键！这是浙江的"南极"，能极大消除南北方向的不确定性
+  WENZHOU_VIRTUAL: [120.699400, 27.994300],
+
+  // 5. 西翼锚点：衢州 (浙大衢州研究院 - 真实存在)
+  // 作用：向西延伸，防止定位点向江西方向漂移
+  QUZHOU: [118.871600, 28.937200]
+};
 // 说明: 在这里配置签到地点后，签到会优先【使用配置的地点】尝试
 //      随后会尝试遍历RaderInfo中的所有地点
 //      如果失败了>3次，则会尝试三点定位法
@@ -331,6 +352,16 @@ async function answerRaderRollcall(raderXY, rid) {
   for (const [key, value] of Object.entries(RaderInfo)) {
     const outcome = await _req(value[0], value[1]);
     console.log("[Autosign][Try Beacon]", key, value, outcome);
+
+    if (outcome?.status_name === "on_call_fine") return true;
+    rader_outcome.push([value, outcome]);
+  }
+
+  // Step 2.5: try extended radar beacon points (Whole Province Coverage)
+  console.log("[Autosign] Standard beacons failed, trying extended provincial beacons...");
+  for (const [key, value] of Object.entries(ExtendedRaderInfo)) {
+    const outcome = await _req(value[0], value[1]);
+    console.log("[Autosign][Try Extended]", key, value, outcome);
 
     if (outcome?.status_name === "on_call_fine") return true;
     rader_outcome.push([value, outcome]);
