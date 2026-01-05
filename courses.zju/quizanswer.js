@@ -6,8 +6,12 @@ import inquirer from "inquirer";
 import { COURSES, ZJUAM } from "login-zju";
 import * as fs from "fs";
 import * as path from "path";
+import { fileURLToPath } from "url";
 
 import "dotenv/config";
+
+const __filename = typeof __filename !== "undefined" ? __filename : fileURLToPath(import.meta.url);
+const __dirname = typeof __dirname !== "undefined" ? __dirname : path.dirname(__filename);
 
 const courses = new COURSES(
   new ZJUAM(process.env.ZJU_USERNAME, process.env.ZJU_PASSWORD)
