@@ -96,9 +96,9 @@ const courses = new COURSES(
         choices ,
       });
     }).then(async({classroom})=>{
-        return courses.fetch(`https://courses.zju.edu.cn/api/classroom/${classroom.id}/result`).then(v=>v.json())
+        return courses.fetch(`https://courses.zju.edu.cn/api/classroom/${classroom.id}/subject`).then(v=>v.json())
     }).then(oral=>{
-        oral.subjects_data.subjects.forEach(rv=>{
+        oral.subjects.forEach(rv=>{
             console.log(`Q#${rv.id} -: ${rv.description}`);
             rv.options.filter(rx=>rx.is_answer).forEach(ans=>{
                 console.log(`  - Answer: ${String.fromCharCode([65+(ans.sort)])}. ${ans.content}`);
@@ -143,7 +143,7 @@ const courses = new COURSES(
             </head>
             <body>
                 <h1>Quiz Answer</h1>
-                ${oral.subjects_data.subjects.map(rv=>`
+                ${oral.subjects.map(rv=>`
                     <div class="question">Q#${rv.id} -: ${rv.description}</div>
                     ${rv.options.map(rx=>`
                         <div class="choice">Choice ${String.fromCharCode([65+(rx.sort)])}: ${rx.content}</div>
