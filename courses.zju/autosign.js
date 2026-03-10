@@ -131,6 +131,9 @@ let we_are_bruteforcing = [];
               sendBoth(`[Auto Sign-in] Bruteforcing new number rollcall #${rollcallId}: ${rollcall.title} @ ${rollcall.course_title} by ${rollcall.created_by_name} (${rollcall.department_name})`);
               batchNumberRollCall(rollcallId);
             }
+            console.log(`[Auto Sign-in] Rollcall #${rollcallId} has an unknown type and we cannot handle it yet.`)
+            console.log("[Auto Sign-in] Rollcall details: ", rollcall);
+            console.log("[Auto Sign-in] If you see this message, please consider \x1b[31m submitting an issue with the rollcall details above \x1b[0m so that we can support this type in the future. Thank you!");
           });
         }
       }).catch((e) => {
