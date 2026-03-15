@@ -81,15 +81,20 @@ async function getCoursesZjuTodos() {
 
       const [
         { activities },
+        { exams },
         { homework_activities },
+        { exam_ids: submittedExamIds },
       ] = await Promise.all([
         courses.fetch(`https://courses.zju.edu.cn/api/courses/${course.id}/activities`).then((r) => r.json()).catch(() => ({ activities: [] })),
+        courses.fetch(`https://courses.zju.edu.cn/api/courses/${course.id}/exams`).then((r) => r.json()).catch(() => ({ exams: [] })),
         courses.fetch(`https://courses.zju.edu.cn/api/course/${course.id}/homework/submission-status?no-intercept=true`).then((r) => r.json()).catch(() => ({ homework_activities: [] })),
+        courses.fetch(`https://courses.zju.edu.cn/api/courses/${course.id}/submitted-exams?no-intercept=true`).then((r) => r.json()).catch(() => ({ exam_ids: [] })),
       ]);
 
       const submittedHomeworkIds = new Set(
         (homework_activities || []).filter((h) => h.status_code === "submitted").map((h) => h.id)
       );
+      const submittedExamIdSet = new Set(submittedExamIds || []);
 
       for (const activity of activities || []) {
         if (!isActive(activity)) continue;
@@ -102,6 +107,20 @@ async function getCoursesZjuTodos() {
           id: activity.id,
           end_time: new Date(activity.end_time),
           type: activity.type,
+          source: "courses.zju",
+        });
+      }
+
+      for (const exam of exams || []) {
+        if (!isActive(exam)) continue;
+        if (submittedExamIdSet.has(exam.id)) continue;
+        todos.push({
+          title: exam.title,
+          course_name: course.name,
+          course_id: course.id,
+          id: exam.id,
+          end_time: new Date(exam.end_time),
+          type: "quiz",
           source: "courses.zju",
         });
       }
