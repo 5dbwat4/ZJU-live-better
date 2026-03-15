@@ -71,32 +71,39 @@ async function getCoursesZjuTodos() {
 
   await Promise.all(
     courseList.map(async (course) => {
-      try {
-        const activitiesResp = await courses.fetch(
-          `https://courses.zju.edu.cn/api/courses/${course.id}/activities`
-        );
-        const { activities } = await activitiesResp.json();
-        if (!Array.isArray(activities)) return;
+      const isActive = (item) => {
+        if (!item.published) return false;
+        if (!item.end_time) return false;
+        if (new Date(item.end_time) <= now) return false;
+        if (item.start_time && new Date(item.start_time) > now) return false;
+        return true;
+      };
 
-        for (const activity of activities) {
-          if (!activity.published) continue;
-          if (!activity.end_time) continue; // 没有截止时间则跳过
-          const endTime = new Date(activity.end_time);
-          if (endTime <= now) continue; // 已截止
-          if (activity.start_time && new Date(activity.start_time) > now) continue; // 还未开始
+      const [
+        { activities },
+        { homework_activities },
+      ] = await Promise.all([
+        courses.fetch(`https://courses.zju.edu.cn/api/courses/${course.id}/activities`).then((r) => r.json()).catch(() => ({ activities: [] })),
+        courses.fetch(`https://courses.zju.edu.cn/api/course/${course.id}/homework/submission-status?no-intercept=true`).then((r) => r.json()).catch(() => ({ homework_activities: [] })),
+      ]);
 
-          todos.push({
-            title: activity.title,
-            course_name: course.name,
-            course_id: course.id,
-            id: activity.id,
-            end_time: endTime,
-            type: activity.type,
-            source: "courses.zju",
-          });
-        }
-      } catch (e) {
-        console.error(`  [!] 获取课程 ${course.name} 作业失败:`, e.message);
+      const submittedHomeworkIds = new Set(
+        (homework_activities || []).filter((h) => h.status_code === "submitted").map((h) => h.id)
+      );
+
+      for (const activity of activities || []) {
+        if (!isActive(activity)) continue;
+        if (activity.type === "homework" && submittedHomeworkIds.has(activity.id)) continue;
+        if (activity.completion_criterion_key === "score" && parseFloat(activity.score_percentage) >= 1) continue;
+        todos.push({
+          title: activity.title,
+          course_name: course.name,
+          course_id: course.id,
+          id: activity.id,
+          end_time: new Date(activity.end_time),
+          type: activity.type,
+          source: "courses.zju",
+        });
       }
     })
   );
