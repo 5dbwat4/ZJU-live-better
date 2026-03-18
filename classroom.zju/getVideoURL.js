@@ -59,14 +59,29 @@ const TimeAgo = (time) => {
         name: c.Title + " - " + c.Teacher,
       }));
     })
-    .then((choices) => {
-      return inquirer.prompt({
+    .then(async (choices) => {
+      const {id} = await inquirer.prompt({
         type: "list",
         name: "id",
         message: "Choose the course:",
         loop: true,
-        choices,
+        choices:[
+          ...choices,
+          {
+            value: "__manual__",
+            name: "Manual input course ID",
+          }
+        ],
       });
+      if(id==="__manual__"){
+        return inquirer.prompt({
+          type: "input",
+          name: "id",
+          message: "Please input the course ID:",
+        });
+      }else{
+        return {id};
+      }
     })
     .then(({ id }) => {
       // console.log(id);
