@@ -1,6 +1,7 @@
 /* 维护学在浙大课件，你需要准备一个`.cache.json`文件，初始为
 {
-  "root": "D:/path/to/the/courseware/folder",
+  "root": "D:/path/to/the/courseware/folder", 
+  // -- update on 2026/3/18: This `root` field is now optional, if not provided, the script will use the cache file directory as root 
   "xid": "81029",// 课程ID
   "cache": []
 }
@@ -16,6 +17,19 @@ if (!cacheFile) {
 }
 
 const data = JSON.parse(fs.readFileSync(cacheFile, "utf-8"));
+
+if (!data.root) {
+  const fallbackRoot = path.dirname(path.resolve(cacheFile));
+  console.warn(
+    `[!] The cache file does not contain \"root\". Use cache directory as root: ${fallbackRoot}`
+  );
+  data.root = fallbackRoot;
+}
+
+data.root = path.resolve(data.root);
+if (!fs.existsSync(data.root)) {
+  fs.mkdirSync(data.root, { recursive: true });
+}
 
 
 
