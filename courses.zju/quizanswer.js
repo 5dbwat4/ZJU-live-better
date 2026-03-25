@@ -58,73 +58,82 @@ const courses = new COURSES(
         )
         .then((v) => v.json());
     })
-    .then(({ courses }) => {
-      return inquirer.prompt({
-        type: "list",
-        name: "course",
-        message: "Choose the course to find the quiz:",
-        loop:true,
-        choices: courses.map((course) => ({
-          name: course.name,
-          value: course,
-        })),
-      });
-    })
-    .then(async ({ course }) => {
-      // console.log(course);
+    .then(async ({ courses: courseList }) => {
+      let continueScanning = true;
+      while (continueScanning) {
+        const { course } = await inquirer.prompt({
+          type: "list",
+          name: "course",
+          message: "Choose the course to find the quiz:",
+          loop: true,
+          choices: courseList.map((course) => ({
+            name: course.name,
+            value: course,
+          })),
+        });
 
-      return courses
-        .fetch(
-          `https://courses.zju.edu.cn/api/courses/${course.id}/classroom-list`
-        )
-        .then((v) => v.json());
-    })
-    .then(({ classrooms }) => {
-      const choices = classrooms
-      .filter((v) => v.status == "start")
-      .map((interaction) => ({
-        name: interaction.title,
-        value: interaction,
-      }))
-      if(choices.length==0){
-        console.log("No active quiz found.");
-        throw "No active quiz found.";
-        return;
-      }
-      return inquirer.prompt({
-        type: "list",
-        name: "classroom",
-        message: "Choose the quiz to answer:",
-        choices ,
-      });
-    }).then(async({classroom})=>{
-        return courses.fetch(`https://courses.zju.edu.cn/api/classroom/${classroom.id}/subject`).then(v=>v.json())
-    }).then(oral=>{
-        oral.subjects.forEach(rv=>{
-          if(rv.type!="fill_in_blank"){
-            console.log(`Q#${rv.id} -: ${rv.description}`);
-            rv.options.filter(rx=>rx.is_answer).forEach(ans=>{
-                console.log(`  - Answer: ${String.fromCharCode([65+(ans.sort)])}. ${ans.content}`);
-            })
-          }else{
-            console.log(`Q#${rv.id} -: ${rv.description}`);
-            rv.correct_answers.forEach((ans,idx)=>{
-                console.log(`  - Answer ${idx+1}: ${ans.content}`);
-            })
-          }
-        })
-        return inquirer
-        .prompt({
-          type: "confirm",
-          name: "confirm",
-          message: "Generate an HTML file to better view answer?",
-          default: true,
-        })
-        .then((confirm) => {
-          if (confirm.confirm) {
-            // const { spawn } = require("child_process");
-            const outputfile = path.join(path.dirname(fileURLToPath(import.meta.url)),"QA.html");
-            fs.writeFileSync(outputfile,`
+        const { classrooms } = await courses
+          .fetch(
+            `https://courses.zju.edu.cn/api/courses/${course.id}/classroom-list`
+          )
+          .then((v) => v.json());
+
+        const quizChoices = classrooms
+          .filter((v) => v.status == "start")
+          .map((interaction) => ({
+            name: interaction.title,
+            value: interaction,
+          }));
+
+        if (quizChoices.length == 0) {
+          console.log("No active quiz found.");
+        } else {
+          const { classroom } = await inquirer.prompt({
+            type: "list",
+            name: "classroom",
+            message: "Choose the quiz to answer:",
+            choices: quizChoices,
+          });
+
+          const oral = await courses
+            .fetch(
+              `https://courses.zju.edu.cn/api/classroom/${classroom.id}/subject`
+            )
+            .then((v) => v.json());
+
+          oral.subjects.forEach((rv) => {
+            if (rv.type != "fill_in_blank") {
+              console.log(`Q#${rv.id} -: ${rv.description}`);
+              rv.options
+                .filter((rx) => rx.is_answer)
+                .forEach((ans) => {
+                  console.log(
+                    `  - Answer: ${String.fromCharCode([65 + ans.sort])}. ${ans.content}`
+                  );
+                });
+            } else {
+              console.log(`Q#${rv.id} -: ${rv.description}`);
+              rv.correct_answers.forEach((ans, idx) => {
+                console.log(`  - Answer ${idx + 1}: ${ans.content}`);
+              });
+            }
+          });
+
+          const { confirm } = await inquirer.prompt({
+            type: "confirm",
+            name: "confirm",
+            message: "Generate an HTML file to better view answer?",
+            default: true,
+          });
+
+          if (confirm) {
+            const outputfile = path.join(
+              path.dirname(fileURLToPath(import.meta.url)),
+              "QA.html"
+            );
+            fs.writeFileSync(
+              outputfile,
+              `
             <!DOCTYPE html>
             <html lang="zh-Hans">
             <head>
@@ -153,27 +162,51 @@ const courses = new COURSES(
             </head>
             <body>
                 <h1>Quiz Answer</h1>
-                ${oral.subjects.map(rv=>`
+                ${oral.subjects
+                  .map(
+                    (rv) => `
                     <div class="question">Q#${rv.id} -: ${rv.description}</div>
-                    ${rv.options?.map(rx=>`
-                        <div class="choice">Choice ${String.fromCharCode([65+(rx.sort)])}: ${rx.content}</div>
-                    `).join("")}
-                    ${rv.options?.filter(rx=>rx.is_answer).map(ans=>`
-                        <div class="answer">Answer: ${String.fromCharCode([65+(ans.sort)])}. ${ans.content}</div>
-                    `).join("")}
-                    ${rv.correct_answers?.map((ans,idx)=>`
-                        <div class="answer">Answer ${idx+1}: ${ans.content}</div>
-                    `).join("")}
-                `).join("")}
+                    ${rv.options
+                      ?.map(
+                        (rx) =>
+                          `<div class="choice">Choice ${String.fromCharCode([65 + rx.sort])}: ${rx.content}</div>`
+                      )
+                      .join("")}
+                    ${rv.options
+                      ?.filter((rx) => rx.is_answer)
+                      .map(
+                        (ans) =>
+                          `<div class="answer">Answer: ${String.fromCharCode([65 + ans.sort])}. ${ans.content}</div>`
+                      )
+                      .join("")}
+                    ${rv.correct_answers
+                      ?.map(
+                        (ans, idx) =>
+                          `<div class="answer">Answer ${idx + 1}: ${ans.content}</div>`
+                      )
+                      .join("")}
+                `
+                  )
+                  .join("")}
             </body>
             </html>
-            `)
-            console.log("[+] HTML file generated at: ",outputfile);
-                    }
+            `
+            );
+            console.log("[+] HTML file generated at: ", outputfile);
+          }
+        }
+
+        const { another } = await inquirer.prompt({
+          type: "confirm",
+          name: "another",
+          message: "Scan another course?",
+          default: true,
         });
+        continueScanning = another;
+      }
     })
-    .catch(e=>{
-      console.log("Exit innormaly with error: ",e);
+    .catch((e) => {
+      console.log("Exit innormaly with error: ", e);
     });
 })();
 
