@@ -121,6 +121,7 @@ let we_are_bruteforcing = [];
             if (rollcall.is_radar) {
               sendBoth(`[Auto Sign-in] Answering new radar rollcall #${rollcallId}: ${rollcall.title} @ ${rollcall.course_title} by ${rollcall.created_by_name} (${rollcall.department_name})`);
               answerRaderRollcall(RaderInfo[CONFIG.raderAt], rollcallId);
+              return;
             }
             if (rollcall.is_number) {
               if(we_are_bruteforcing.includes(rollcallId)){
@@ -130,7 +131,9 @@ let we_are_bruteforcing = [];
               we_are_bruteforcing.push(rollcallId);
               sendBoth(`[Auto Sign-in] Bruteforcing new number rollcall #${rollcallId}: ${rollcall.title} @ ${rollcall.course_title} by ${rollcall.created_by_name} (${rollcall.department_name})`);
               batchNumberRollCall(rollcallId);
+              return;
             }
+            // None of the above.
             console.log(`[Auto Sign-in] Rollcall #${rollcallId} has an unknown type and we cannot handle it yet.`)
             console.log("[Auto Sign-in] Rollcall details: ", rollcall);
             console.log("[Auto Sign-in] If you see this message, please consider \x1b[31m submitting an issue with the rollcall details above \x1b[0m so that we can support this type in the future. Thank you!");
