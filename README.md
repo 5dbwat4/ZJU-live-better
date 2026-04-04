@@ -10,6 +10,8 @@ A collection of useful scripts helping you live better in ZJU.
 
 使用时，在working dir下运行`node path/to/script`，其中`path/to/script`是指向脚本的路径，例如`classroom.zju/generateCourseMd`
 
+也可以运行`npm link`将本项目链接到全局，然后可以直接在任意目录下运行`zlb`进入脚本选择
+
 ## 功能列表
 
 ### 学在浙大相关（`courses.zju/`）
