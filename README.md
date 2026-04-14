@@ -41,3 +41,13 @@ A collection of useful scripts helping you live better in ZJU.
 ## 免责声明
 
 本项目仅供学习交流使用，请勿用于任何商业用途，请勿用于任何非法或违规用途。使用本项目前请务必了解并遵守浙江大学相关政策和规定。作者不对因使用本项目而导致的任何后果负责。
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=5dbwat4%2FZJU-live-better&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=5dbwat4/ZJU-live-better&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=5dbwat4/ZJU-live-better&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=5dbwat4/ZJU-live-better&type=date&legend=top-left" />
+ </picture>
+</a>
