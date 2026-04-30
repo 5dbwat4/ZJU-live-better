@@ -7,10 +7,10 @@ import Decimal from "decimal.js";
 Decimal.set({ precision: 100 });
 
 const CONFIG = {
-  raderAt: "ZJGD1",
+  radarAt: "ZJGD1",
   coldDownTime: 4000, // 4s
 };
-const RaderInfo = {
+const RadarInfo = {
   ZJGD1: [120.089136, 30.302331], //东一教学楼
   ZJGX1: [120.085042, 30.30173], //西教学楼
   ZJGB1: [120.077135, 30.305142], //段永平教学楼
@@ -25,14 +25,14 @@ const RaderInfo = {
   ZJG4: [120.073427,30.299757], //紫金港大西区
 };
 // 说明: 在这里配置签到地点后，签到会优先【使用配置的地点】尝试
-//      随后会尝试遍历RaderInfo中的所有地点
+//      随后会尝试遍历RadarInfo中的所有地点
 //      如果失败了>3次，则会尝试三点定位法
 
 // 成功率：目前【雷达点名】+【已配置了雷达地点】的情况可以100%签到成功
 //        数字点名已测试，已成功，确定远程没有限速，没有calm down，但是目前单线程，可能会有点慢，
 //        三点定位法已完成，感谢@eWloYW8
 
-// 顺便一提，经测试，rader_out_of_scope的限制是500米整
+// 顺便一提，经测试，radar_out_of_scope的限制是500米整
 
 const sendBoth=(msg)=>{
   console.log(msg);
@@ -120,7 +120,7 @@ let we_are_bruteforcing = [];
             console.log("[Auto Sign-in] Now answering rollcall #" + rollcallId);
             if (rollcall.is_radar) {
               sendBoth(`[Auto Sign-in] Answering new radar rollcall #${rollcallId}: ${rollcall.title} @ ${rollcall.course_title} by ${rollcall.created_by_name} (${rollcall.department_name})`);
-              answerRaderRollcall(RaderInfo[CONFIG.raderAt], rollcallId);
+              answerRadarRollcall(RadarInfo[CONFIG.radarAt], rollcallId);
               return;
             }
             if (rollcall.is_number) {
@@ -298,7 +298,7 @@ function solveSphereLeastSquaresDecimal(rawPoints) {
 }
 
 
-async function answerRaderRollcall(raderXY, rid) {
+async function answerRadarRollcall(radarXY, rid) {
 
   async function _req(lon, lat) {
     return await courses.fetch(
@@ -323,29 +323,29 @@ async function answerRaderRollcall(raderXY, rid) {
     });
   }
 
-  let rader_outcome = [];
+  let radar_outcome = [];
 
   // Step 1: try configured location
-  if (raderXY) {
-    const outcome = await _req(raderXY[0], raderXY[1]);
-    console.log("[Autosign][Try Config]", raderXY, outcome);
+  if (radarXY) {
+    const outcome = await _req(radarXY[0], radarXY[1]);
+    console.log("[Autosign][Try Config]", radarXY, outcome);
     if (outcome?.status_name === "on_call_fine") return true;
-    rader_outcome.push([raderXY, outcome]);
+    radar_outcome.push([radarXY, outcome]);
   }
 
   // Step 2: try all radar beacon points
-  for (const [key, value] of Object.entries(RaderInfo)) {
+  for (const [key, value] of Object.entries(RadarInfo)) {
     const outcome = await _req(value[0], value[1]);
     console.log("[Autosign][Try Beacon]", key, value, outcome);
 
     if (outcome?.status_name === "on_call_fine") return true;
-    rader_outcome.push([value, outcome]);
+    radar_outcome.push([value, outcome]);
   }
 
   // Step 3: spherical Nelder-Mead trilateration
   let rawPoints = [];
 
-  for (const [coord, outcome] of rader_outcome) {
+  for (const [coord, outcome] of radar_outcome) {
     const d = Number(outcome?.distance ?? outcome?.data?.distance ?? outcome?.result?.distance);
     if (Number.isFinite(d) && d > 0) {
       rawPoints.push({ lon: coord[0], lat: coord[1], d });
