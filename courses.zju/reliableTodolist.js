@@ -43,6 +43,15 @@ async function fetchPintiaProblemSets(cookie, filter) {
   });
 }
 
+function todoSortTime(todo) {
+  return todo.end_time ? todo.end_time.getTime() : Number.POSITIVE_INFINITY;
+}
+
+function formatDueLine(endTime) {
+  if (!endTime) return "No DDL";
+  return `Remains ${time_later(endTime)} (DDL ${endTime.toLocaleString()})`;
+}
+
 // courses.zju.edu.cn
 
 async function getCoursesZjuTodos() {
@@ -102,11 +111,13 @@ async function getCoursesZjuTodos() {
         { exams },
         { homework_activities },
         { exam_ids: submittedExamIds },
+        { classrooms },
       ] = await Promise.all([
         courses.fetch(`https://courses.zju.edu.cn/api/courses/${course.id}/activities`).then((r) => r.json()).catch(() => ({ activities: [] })),
         courses.fetch(`https://courses.zju.edu.cn/api/courses/${course.id}/exams`).then((r) => r.json()).catch(() => ({ exams: [] })),
         courses.fetch(`https://courses.zju.edu.cn/api/course/${course.id}/homework/submission-status?no-intercept=true`).then((r) => r.json()).catch(() => ({ homework_activities: [] })),
         courses.fetch(`https://courses.zju.edu.cn/api/courses/${course.id}/submitted-exams?no-intercept=true`).then((r) => r.json()).catch(() => ({ exam_ids: [] })),
+        courses.fetch(`https://courses.zju.edu.cn/api/courses/${course.id}/classroom-list`).then((r) => r.json()).catch(() => ({ classrooms: [] })),
       ]);
 
       const submittedHomeworkIds = new Set(
@@ -139,6 +150,21 @@ async function getCoursesZjuTodos() {
           id: exam.id,
           end_time: new Date(exam.end_time),
           type: "quiz",
+          source: "courses.zju",
+        });
+      }
+
+      for (const classroom of classrooms || []) {
+        if (classroom.status !== "start") continue;
+        if (classroom.start_at && new Date(classroom.start_at) > now) continue;
+        if (classroom.end_at && new Date(classroom.end_at) <= now) continue;
+        todos.push({
+          title: classroom.title,
+          course_name: course.name,
+          course_id: course.id,
+          id: classroom.id,
+          end_time: classroom.end_at ? new Date(classroom.end_at) : null,
+          type: "interaction",
           source: "courses.zju",
         });
       }
@@ -203,7 +229,7 @@ async function getPintiaTodos() {
   );
 
   const allTodos = [...zjuTodos, ...pintiaTodos].sort(
-    (a, b) => a.end_time - b.end_time
+    (a, b) => todoSortTime(a) - todoSortTime(b)
   );
 
   if (allTodos.length === 0) {
@@ -215,12 +241,18 @@ async function getPintiaTodos() {
     if (todo.source === "pintia") {
       return `
   - [pintia] ${todo.title} @ ${todo.course_name}
-    Remains ${time_later(todo.end_time)} (DDL ${todo.end_time.toLocaleString()})
+    ${formatDueLine(todo.end_time)}
     Go to https://pintia.cn/problem-sets/${todo.id}/exam/problems to submit it.`;
+    }
+    if (todo.type === "interaction") {
+      return `
+  - ${todo.title} @ ${todo.course_name}
+    ${formatDueLine(todo.end_time)}
+    Go to https://courses.zju.edu.cn/course/${todo.course_id}/content#/ to finish it.`;
     }
     return `
   - ${todo.title} @ ${todo.course_name}
-    Remains ${time_later(todo.end_time)} (DDL ${todo.end_time.toLocaleString()})
+    ${formatDueLine(todo.end_time)}
     Go to https://courses.zju.edu.cn/course/${todo.course_id}/learning-activity#/${todo.id} to submit it.`;
   }).join("\n")}
 `);
