@@ -65,7 +65,7 @@ let we_are_bruteforcing = [];
           sendBoth("[-][Auto Sign-in] Something went wrong: " + fa+"\nError: "+e.toString());
         }
       })
-  //     .then((v) => v.json())
+      //     .then((v) => v.json())
       .then(async (v) => {
         if (v.rollcalls.length == 0) {
           console.log(`[Auto Sign-in](Req #${++req_num}) No rollcalls found.`);
@@ -73,7 +73,7 @@ let we_are_bruteforcing = [];
           console.log(
             `[Auto Sign-in](Req #${++req_num}) Found ${v.rollcalls.length} rollcalls. 
                 They are:${v.rollcalls.map(
-              (rc) => `
+                  (rc) => `
                   - ${rc.title} @ ${rc.course_title} by ${rc.created_by_name} (${rc.department_name})`
             )}`
           );
@@ -276,7 +276,7 @@ function rmsDecimal(lon, lat, pts, R) {
     sum = sum.plus(diff.mul(diff));
   }
 
-  return sum.div(pts.length).sqrt(); 
+  return sum.div(pts.length).sqrt();
 }
 
 function solveSphereLeastSquaresDecimal(rawPoints) {
@@ -303,24 +303,24 @@ async function answerRadarRollcall(radarXY, rid) {
   async function _req(lon, lat) {
     return await courses.fetch(
       "https://courses.zju.edu.cn/api/rollcall/" + rid + "/answer?api_version=1.1.2",
-      {
-        body: JSON.stringify({
-          deviceId: uuidv4(),
-          latitude: lat,
-          longitude: lon,
-          speed: null,
-          accuracy: 68,
-          altitude: null,
-          altitudeAccuracy: null,
-          heading: null,
-        }),
-        method: "PUT",
+        {
+          body: JSON.stringify({
+            deviceId: uuidv4(),
+            latitude: lat,
+            longitude: lon,
+            speed: null,
+            accuracy: 68,
+            altitude: null,
+            altitudeAccuracy: null,
+            heading: null,
+          }),
+          method: "PUT",
         headers: { "Content-Type": "application/json" }
       }
     ).then(async v => {
       try { return await v.json(); }
       catch (e) { console.log("[Autosign][JSON error]", e); return null; }
-    });
+      });
   }
 
   let radar_outcome = [];
@@ -376,8 +376,8 @@ async function answerNumberRollcall(numberCode, rid) {
   return await courses
     .fetch(
       "https://courses.zju.edu.cn/api/rollcall/" +
-      rid +
-      "/answer_number_rollcall",
+        rid +
+        "/answer_number_rollcall",
       {
         body: JSON.stringify({
           deviceId: uuidv4(),
@@ -419,6 +419,18 @@ async function batchNumberRollCall(rid) {
 
   const state = new Map();
   state.set("found", false);
+
+  const data = await getNumberCode(rid);
+  const numberCode = data?.number_code;
+
+  answerNumberRollcall(numberCode, rid).then((success) => {
+    if (state.get("found")) return;
+
+    if (success) {
+      foundCode = numberCode;
+      state.set("found", true);
+    }
+  });
 
   const batchSize = 200;
   let foundCode = null;
@@ -468,3 +480,17 @@ async function batchNumberRollCall(rid) {
   }
 }
 
+async function getNumberCode(rid) {
+  return await courses
+    .fetch(
+      "https://courses.zju.edu.cn/api/rollcall/" + rid + "/student_rollcalls",
+    )
+    .then(async (v) => {
+      try {
+        return await v.json();
+      } catch (e) {
+        console.log("[Autosign][JSON error]", e);
+        return null;
+      }
+    });
+}
