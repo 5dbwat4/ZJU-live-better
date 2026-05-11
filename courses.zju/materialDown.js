@@ -27,7 +27,7 @@ const sanitizeFileName = (name) =>
     .replace(/_+/g, "_")
     .replace(/^_|_$/g, "") || "unnamed";
 
-const downloadFiles = (list, courseName) => {
+const downloadFiles = async (list, courseName) => {
   const downloadDir = path.resolve(
     process.cwd(),
     "downloads",
@@ -85,14 +85,24 @@ const downloadFiles = (list, courseName) => {
       writer.on("finish", resolve).on("error", reject);
     });
   };
-  list.forEach((file) => {
-    // multibar.create(file.size, 0, { filename });
-    download(file).then(()=>{
-      // fs.appendFileSync(path.resolve(process.cwd(), ".learninginzju-materials"), file.id + "\n")
-    })
-  });
 
+  const results = await Promise.allSettled(list.map(download));
+  multibar.stop();
 
+  const failed = results
+    .map((result, index) => ({ result, file: list[index] }))
+    .filter(({ result }) => result.status === "rejected");
+
+  if (failed.length) {
+    console.warn(`[!] ${list.length - failed.length}/${list.length} materials downloaded.`);
+    console.warn(`[!] ${failed.length} materials failed:`);
+    failed.forEach(({ result, file }) => {
+      console.warn(`  - ${file.name}: ${result.reason.message}`);
+    });
+    return;
+  }
+
+  console.log(`[+] Downloaded ${list.length} materials.`);
 };
 
 (async () => {
@@ -191,7 +201,7 @@ const downloadFiles = (list, courseName) => {
         })
         .then(({ whether }) => {
           if (whether) {
-            downloadFiles(materialList, courseName);
+            return downloadFiles(materialList, courseName);
           }
         });
     });

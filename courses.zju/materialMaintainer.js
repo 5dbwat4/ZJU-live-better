@@ -101,29 +101,30 @@ const downloadFiles = (list) => {
       writer.on("finish", resolve).on("error", reject);
     });
   };
-  Promise.all(
-    list.map((file) => {
-      return new Promise((resolve, reject) => {
-        download(file)
-          .then(() => {
-            multibar.update(file.size, { filename: file.name });
-            resolve();
-          })
-          .catch((err) => {
-            console.error(`下载失败: ${err.message}`);
-            reject(err);
-          });
-      });
-    })
-  )
-    .then(() => {
+  Promise.allSettled(list.map(download))
+    .then((results) => {
       multibar.stop();
-      console.log(`[+] 下载完成`);
-      data.cache.push(...list);
+      const succeeded = results
+        .map((result, index) => ({ result, file: list[index] }))
+        .filter(({ result }) => result.status === "fulfilled")
+        .map(({ file }) => file);
+      const failed = results
+        .map((result, index) => ({ result, file: list[index] }))
+        .filter(({ result }) => result.status === "rejected");
+
+      data.cache.push(...succeeded);
       fs.writeFileSync(cacheFile, JSON.stringify(data, null, 2));
-    })
-    .catch((err) => {
-      console.error(`[x] 下载失败: ${err.message}`);
+
+      if (failed.length) {
+        console.warn(`[!] ${succeeded.length}/${list.length} 个课件下载完成。`);
+        console.warn(`[!] ${failed.length} 个课件下载失败：`);
+        failed.forEach(({ result, file }) => {
+          console.warn(`  - ${file.name}: ${result.reason.message}`);
+        });
+        return;
+      }
+
+      console.log(`[+] 下载完成`);
     });
 
 
