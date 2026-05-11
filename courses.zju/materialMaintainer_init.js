@@ -16,7 +16,7 @@ const sanitizeFileName = (name) =>
 		.replace(/[\\/:*?"<>|]/g, "_")
 		.replace(/\s+/g, "_")
 		.replace(/_+/g, "_")
-		.replace(/^_|_$/g, "");
+		.replace(/^_|_$/g, "") || "unnamed";
 
 const getActiveSemesters = async () => {
 	const response = await coursesClient.fetch(
@@ -85,7 +85,7 @@ const getCourses = async (semesterIds) => {
 		type: "input",
 		name: "folder",
 		message: "请输入配置文件存放文件夹\nWindows下，可以直接将文件夹拖入终端窗口以获取路径：",
-		default: process.cwd(),
+		default: path.join(process.cwd(), "downloads", sanitizeFileName(course.name)),
 		validate: (input) =>
 			input && input.trim() ? true : "文件夹路径不能为空",
 	});
