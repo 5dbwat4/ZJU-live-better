@@ -18,6 +18,7 @@ const scripts = [
   { name: '智云课堂: 生成课程 Markdown (generateCourseMd)', value: 'classroom.zju/generateCourseMd.js' },
   { name: '智云课堂: 获取视频链接 (getVideoURL)', value: 'classroom.zju/getVideoURL.js' },
   { name: 'Webplus: 保存通知及附件 (saveDoc)', value: 'webplus.zju/saveDoc.js' },
+  { name: '图书馆: 查询已借阅图书并操作续借', value: 'lib.zju/bookList.js' },
 ];
 
 async function main() {

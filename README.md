@@ -33,7 +33,11 @@ A collection of useful scripts helping you live better in ZJU.
 | ☆`generateCourseMd` | 将智云课堂语音识别&PPT图片生成Markdown文件 |
 | `getVideoURL` | 获取指定课程视频链接 |
 
+### 图书馆相关（`lib.zju/`）
 
+| 功能 | 说明 |
+| --- | --- |
+| ☆`bookList` | 查询已借阅图书并操作续借 |
 
 
 ## 反馈
