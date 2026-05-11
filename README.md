@@ -21,8 +21,8 @@ A collection of useful scripts helping you live better in ZJU.
 | 功能 | 说明 |
 | --- | --- |
 | `todolist` | 生成作业待办事项列表 |
-| `materialDown` | 下载课程所有素材 |
-| `materialMaintainer` | 可以基于配置文件增量下载课程素材 |
+| `materialDown` | 下载课程所有素材，默认保存到 `downloads/课程名` |
+| `materialMaintainer` | 可以基于配置文件增量下载课程素材，初始化默认保存到 `downloads/课程名` |
 
 * \* 部分脚本未列出 \* * 
 

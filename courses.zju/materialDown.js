@@ -20,7 +20,22 @@ const byteToSize = (bytes) => {
   return Math.round(bytes / Math.pow(1024, i), 2) + " " + sizes[i];
 };
 
-const downloadFiles = (list) => {
+const sanitizeFileName = (name) =>
+  name
+    .replace(/[\\/:*?"<>|]/g, "_")
+    .replace(/\s+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "") || "unnamed";
+
+const downloadFiles = (list, courseName) => {
+  const downloadDir = path.resolve(
+    process.cwd(),
+    "downloads",
+    sanitizeFileName(courseName)
+  );
+  fs.mkdirSync(downloadDir, { recursive: true });
+  console.log(`Materials will be saved to: ${downloadDir}`);
+
   const multibar = new cliProgress.MultiBar(
     {
       clearOnComplete: true,
@@ -30,16 +45,18 @@ const downloadFiles = (list) => {
     cliProgress.Presets.shades_grey
   );
   const download = async (fileinfo) => {
-    console.log(fileinfo,"https://courses.zju.edu.cn/api/uploads/"+fileinfo.id+"/blob");
+    const url = `https://courses.zju.edu.cn/api/uploads/${fileinfo.id}/blob`;
+    console.log(fileinfo, url);
     
-    const response = await courses.fetch("https://courses.zju.edu.cn/api/uploads/"+fileinfo.id+"/blob");
+    const response = await courses.fetch(url);
 
     if (!response.ok) {
       throw new Error(`下载失败: ${response.statusText}`);
     }
-    const writer = fs.createWriteStream(fileinfo.name);
+    const filename = sanitizeFileName(fileinfo.name);
+    const writer = fs.createWriteStream(path.join(downloadDir, filename));
 
-    const bar = multibar.create(fileinfo.size, 0, { filename:fileinfo.name });
+    const bar = multibar.create(fileinfo.size, 0, { filename });
 
     let receivedBytes = 0;
     // const totalBytes = parseInt(response.headers.get("content-length"), 10);
@@ -69,7 +86,6 @@ const downloadFiles = (list) => {
     });
   };
   list.forEach((file) => {
-    const filename = file.name.replace(/[\\/:*?"<>|]/g, "_");
     // multibar.create(file.size, 0, { filename });
     download(file).then(()=>{
       // fs.appendFileSync(path.resolve(process.cwd(), ".learninginzju-materials"), file.id + "\n")
@@ -139,9 +155,10 @@ const downloadFiles = (list) => {
 
       return courses
         .fetch(`https://courses.zju.edu.cn/api/courses/${course.id}/activities`)
-        .then((v) => v.json());
+        .then((v) => v.json())
+        .then((data) => ({ ...data, courseName: course.name }));
     })
-    .then(({ activities }) => {
+    .then(({ activities, courseName }) => {
       const materialList = activities.filter(
         (activity) => activity.type === "material"
       );
@@ -157,10 +174,10 @@ const downloadFiles = (list) => {
           });
         });
       });
-      return realMaterialList
+      return { materialList: realMaterialList, courseName };
       // .filter(v=>!(fs.readFileSync(path.resolve(process.cwd(), ".learninginzju-materials")).toString().split("\n").includes(v.id)))
     })
-    .then((materialList) => {
+    .then(({ materialList, courseName }) => {
       return inquirer
         .prompt({
           type: "confirm",
@@ -169,12 +186,12 @@ const downloadFiles = (list) => {
             materialList.length
           } materials, size ${byteToSize(
             materialList.reduce((acc, cur) =>(acc + cur.size), 0)
-          )}, continue?`,
+          )}, save to downloads/${sanitizeFileName(courseName)}, continue?`,
           default: true,
         })
         .then(({ whether }) => {
           if (whether) {
-            downloadFiles(materialList);
+            downloadFiles(materialList, courseName);
           }
         });
     });
