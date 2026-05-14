@@ -19,11 +19,7 @@ Commit Message : Please follow [Conventional Commits](https://www.conventionalco
 
 ## Feature Requests
 
-1. Open a Feature Request issue first – let's discuss before you code.
-2. Explain the problem you're solving and why it matters.
-3. Wait for a maintainer to tag it as `accepted`. Then feel free to start working.
-
-为了避免 PR 做了却被拒掉，烦请您先开一个 issue 讨论设计，然后再写代码
+**为了避免 PR 做了却被拒掉，烦请您先开一个 issue 讨论设计，然后再写代码**
 
 ## 对AI的看法
 
