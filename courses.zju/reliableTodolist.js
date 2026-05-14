@@ -52,6 +52,14 @@ function formatDueLine(endTime) {
   return `Remains ${time_later(endTime)} (DDL ${endTime.toLocaleString()})`;
 }
 
+function expandActiveSemesterIds(semesters) {
+  const activeSemesterIds = semesters
+    .filter((semester) => semester.is_active)
+    .flatMap((semester) => [semester.id, semester.id + 1, semester.id + 2]);
+
+  return [...new Set(activeSemesterIds)];
+}
+
 // courses.zju.edu.cn
 
 async function getCoursesZjuTodos() {
@@ -64,9 +72,9 @@ async function getCoursesZjuTodos() {
     "https://courses.zju.edu.cn/api/my-semesters?fields=id,name,sort,is_active,code"
   );
   const { semesters } = await semestersResp.json();
-  const activeSemesters = semesters.filter((s) => s.is_active);
+  const activeSemesterIds = expandActiveSemesterIds(semesters);
 
-  // 2. 获取活跃学期的所有课程
+  // 2. 获取活跃学期及其相邻短学期的所有课程
   const coursesFetchParam = new URLSearchParams();
   coursesFetchParam.set("page", "1");
   coursesFetchParam.set("page_size", "1000");
@@ -76,7 +84,7 @@ async function getCoursesZjuTodos() {
     "conditions",
     JSON.stringify({
       role: [],
-      semester_id: activeSemesters.map((v) => v.id),
+      semester_id: activeSemesterIds,
       academic_year_id: [],
       status: ["ongoing", "notStarted"],
       course_type: [],
@@ -91,13 +99,16 @@ async function getCoursesZjuTodos() {
     "https://courses.zju.edu.cn/api/my-courses?" + coursesFetchParam.toString()
   );
   const { courses: courseList } = await coursesResp.json();
+  const uniqueCourseList = [
+    ...new Map((courseList || []).map((course) => [course.id, course])).values(),
+  ];
 
   // 3. 并发获取每门课程的 activities，过滤出已开始且未截止的条目
   const now = new Date();
   const todos = [];
 
   await Promise.all(
-    courseList.map(async (course) => {
+    uniqueCourseList.map(async (course) => {
       const isActive = (item) => {
         if (!item.published) return false;
         if (!item.end_time) return false;
