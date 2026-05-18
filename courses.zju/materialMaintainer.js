@@ -9,49 +9,18 @@
 使用时将该文件路径作为参数传入
 */
 
-const cacheFile = process.argv.find((v) => v.endsWith(".cache.json"));
-
-if (!cacheFile) {
-  console.error("Please provide a cache file path as an argument.");  
-  process.exit(1);
-}
-
-const data = JSON.parse(fs.readFileSync(cacheFile, "utf-8"));
-
-if (!data.root) {
-  const fallbackRoot = path.dirname(path.resolve(cacheFile));
-  console.warn(
-    `[!] The cache file does not contain \"root\". Use cache directory as root: ${fallbackRoot}`
-  );
-  data.root = fallbackRoot;
-}
-
-data.root = path.resolve(data.root);
-if (!fs.existsSync(data.root)) {
-  fs.mkdirSync(data.root, { recursive: true });
-}
-
-
-
 import inquirer from "inquirer";
 import { COURSES, ZJUAM } from "login-zju";
 import cliProgress from "cli-progress";
 import fs from "fs";
 import path from "path";
+import { byteToSize } from "../shared/utils.js";
 
 import "dotenv/config";
 
 const courses = new COURSES(
-  new ZJUAM(process.env.ZJU_USERNAME, process.env.ZJU_PASSWORD)
+  new ZJUAM(process.env.ZJU_USERNAME, process.env.ZJU_PASSWORD),
 );
-
-const byteToSize = (bytes) => {
-  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
-  if (bytes == 0) return "0 Byte";
-  let i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
-  if (i > sizes.length - 1) i = sizes.length - 1;
-  return Math.round(bytes / Math.pow(1024, i), 2) + " " + sizes[i];
-};
 
 const downloadFiles = (list) => {
   const multibar = new cliProgress.MultiBar(
@@ -60,25 +29,27 @@ const downloadFiles = (list) => {
       hideCursor: true,
       format: "{filename} | {bar} | {value}/{total}",
     },
-    cliProgress.Presets.rect
+    cliProgress.Presets.rect,
   );
   const download = async (fileinfo) => {
     // console.log(fileinfo,"https://courses.zju.edu.cn/api/uploads/"+fileinfo.id+"/blob");
-    
-    const response = await courses.fetch("https://courses.zju.edu.cn/api/uploads/"+fileinfo.id+"/blob");
+
+    const response = await courses.fetch(
+      "https://courses.zju.edu.cn/api/uploads/" + fileinfo.id + "/blob",
+    );
 
     if (!response.ok) {
       throw new Error(`下载失败: ${response.statusText}`);
     }
-    const writer = fs.createWriteStream(path.join(data.root,fileinfo.name));
+    const writer = fs.createWriteStream(path.join(data.root, fileinfo.name));
 
-    const bar = multibar.create(fileinfo.size, 0, { filename:fileinfo.name });
+    const bar = multibar.create(fileinfo.size, 0, { filename: fileinfo.name });
 
     let receivedBytes = 0;
     // const totalBytes = parseInt(response.headers.get("content-length"), 10);
 
     let receivedLength = 0; // received that many bytes at the moment
-    let chunks = []; // array of received binary chunks 
+    let chunks = []; // array of received binary chunks
 
     // bar.start(totalBytes, 0);
 
@@ -114,7 +85,7 @@ const downloadFiles = (list) => {
             reject(err);
           });
       });
-    })
+    }),
   )
     .then(() => {
       multibar.stop();
@@ -125,19 +96,48 @@ const downloadFiles = (list) => {
     .catch((err) => {
       console.error(`[x] 下载失败: ${err.message}`);
     });
-
-
-
-
 };
 
 (async () => {
-  courses.
-    fetch(`https://courses.zju.edu.cn/api/courses/${data.xid}/activities`)
-        .then((v) => v.json())
-        .then(({ activities }) => {
+  const cacheFile =
+    process.argv.find((v) => v.endsWith(".cache.json")) ||
+    (
+      await inquirer.prompt({
+        type: "input",
+        name: "path",
+        message: "Input your JSON path",
+      })
+    ).path;
+
+  // if (!cacheFile) {
+  //   console.error("Please provide a cache file path as an argument.");
+  //   process.exit(1);
+
+  // }
+
+  const data = JSON.parse(fs.readFileSync(cacheFile, "utf-8"));
+
+  if (!data.root) {
+    const fallbackRoot = path.dirname(path.resolve(cacheFile));
+    console.warn(
+      `[!] The cache file does not contain \"root\". Use cache directory as root: ${fallbackRoot}`,
+    );
+    data.root = fallbackRoot;
+  }
+
+  data.root = path.resolve(data.root);
+  if (!fs.existsSync(data.root)) {
+    fs.mkdirSync(data.root, { recursive: true });
+  }
+
+  console.log(data);
+
+  courses
+    .fetch(`https://courses.zju.edu.cn/api/courses/${data.xid}/activities`)
+    .then((v) => v.json())
+    .then(({ activities }) => {
       const materialList = activities.filter(
-        (activity) => activity.type === "material"
+        (activity) => activity.type === "material",
       );
       let realMaterialList = [];
       materialList.forEach((material) => {
@@ -151,11 +151,9 @@ const downloadFiles = (list) => {
           });
         });
       });
-      return realMaterialList
-      .filter(
-        (material) =>
-          data.cache.findIndex((v) => v.id === material.id) === -1
-      )
+      return realMaterialList.filter(
+        (material) => data.cache.findIndex((v) => v.id === material.id) === -1,
+      );
     })
     .then((materialList) => {
       return inquirer
@@ -165,7 +163,7 @@ const downloadFiles = (list) => {
           message: `Will download ${
             materialList.length
           } materials, size ${byteToSize(
-            materialList.reduce((acc, cur) =>(acc + cur.size), 0)
+            materialList.reduce((acc, cur) => acc + cur.size, 0),
           )}, continue?`,
           default: true,
         })

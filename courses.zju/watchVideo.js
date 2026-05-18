@@ -7,6 +7,7 @@
 import inquirer from "inquirer";
 import { COURSES, ZJUAM } from "login-zju";
 import "dotenv/config";
+import { pickCourseId } from "../shared/choose-a-course.js";
 
 const CHUNK_SECONDS = 120;
 
@@ -172,104 +173,12 @@ async function resolveTask(task) {
   }
 }
 
-async function pickCourseId() {
-  console.log("\x1b[1m[1/4] Fetching semester information...\x1b[0m");
-  state.currentActivityTitle = "加载学期";
-  state.currentActivityRequestDone = 0;
-  state.currentActivityRequestTotal = 1;
-
-  const semesterResp = await requestJson(
-    "https://courses.zju.edu.cn/api/my-semesters?fields=id,name,sort,is_active,code",
-    undefined,
-    "GET /api/my-semesters"
-  );
-
-  const activeSemesters = (semesterResp.semesters || []).filter((s) => s.is_active);
-  if (activeSemesters.length === 0) {
-    throw new Error("未找到活跃学期，无法定位课程。");
-  }
-
-  console.log("\x1b[1m[2/4] Fetching course list...\x1b[0m");
-  state.currentActivityTitle = "加载课程";
-  state.currentActivityRequestDone = 0;
-  state.currentActivityRequestTotal = 1;
-
-  const params = new URLSearchParams();
-  params.set("page", "1");
-  params.set("page_size", "1000");
-  params.set("sort", "all");
-  params.set("normal", '{"version":7,"apiVersion":"1.1.0"}');
-  params.set(
-    "conditions",
-    JSON.stringify({
-      role: [],
-      semester_id: activeSemesters.map((v) => v.id),
-      academic_year_id: [],
-      status: ["ongoing", "notStarted","finished"],
-      course_type: [],
-      effectiveness: [],
-      published: [],
-      display_studio_list: false,
-    })
-  );
-  params.set(
-    "fields",
-    "id,name,second_name,department(id,name),instructors(name),grade(name),klass(name),course_code"
-  );
-
-  const coursesResp = await requestJson(
-    `https://courses.zju.edu.cn/api/my-courses?${params.toString()}`,
-    undefined,
-    "GET /api/my-courses"
-  );
-
-  const courseList = coursesResp.courses || [];
-//   if (courseList.length === 0) {
-//     throw new Error("课程列表为空，无法继续。请确认账号在学在浙大有在修课程。");
-//   }
-
-  const answer = await inquirer.prompt([
-    {
-      type: "list",
-      name: "courseId",
-      message: "请选择要刷课的课程：",
-      pageSize: 20,
-      loop: true,
-      choices: [...courseList.map((course) => ({
-        name: `${course.name} (ID: ${course.id})`,
-        value: course.id,
-      })), {
-        name: "（手动输入课程ID）",
-        value: "__manual__",
-      }],
-    },
-  ]);
-
-  if (answer.courseId === "__manual__") {
-    const manualAnswer = await inquirer.prompt([
-      {
-        type: "input",
-        name: "courseId",
-        message: "请输入课程ID：",
-        validate: (input) => {
-            if (!/^\d+$/.test(input)) {
-                return "课程ID应为纯数字。";
-            }
-            return true;
-        }
-        },
-    ]);
-    return manualAnswer.courseId;
-  }
-
-  return answer.courseId;
-}
 
 async function main() {
   try {
     console.log("[watchVideo] Begins...");
 
-    const courseId = await pickCourseId();
+    const courseId = await pickCourseId(courses);
 
     console.log(`\x1b[1m[3/4] Fetching activities ...\x1b[0m`);
     state.currentActivityTitle = "加载活动列表";

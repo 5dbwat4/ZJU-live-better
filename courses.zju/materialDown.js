@@ -7,18 +7,13 @@ import fs from "fs";
 import path from "path";
 
 import "dotenv/config";
+import { pickCourseId } from "../shared/choose-a-course.js";
+import { byteToSize } from "../shared/utils.js";
 
 const courses = new COURSES(
   new ZJUAM(process.env.ZJU_USERNAME, process.env.ZJU_PASSWORD)
 );
 
-const byteToSize = (bytes) => {
-  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
-  if (bytes == 0) return "0 Byte";
-  let i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
-  if (i > sizes.length - 1) i = sizes.length - 1;
-  return Math.round(bytes / Math.pow(1024, i), 2) + " " + sizes[i];
-};
 
 const downloadFiles = (list) => {
   const multibar = new cliProgress.MultiBar(
@@ -80,65 +75,12 @@ const downloadFiles = (list) => {
 };
 
 (async () => {
-  courses
-    .fetch(
-      "https://courses.zju.edu.cn/api/my-semesters?fields=id,name,sort,is_active,code"
-    )
-    .then((v) => v.json())
-    .then(({ semesters }) => {
-      return semesters.filter((semester) => semester.is_active);
-    })
-    .then(async (semesters) => {
-      // console.log(semesters);
-      const coursesFetchParam = new URLSearchParams();
-      coursesFetchParam.set("page", "1");
-      coursesFetchParam.set("page_size", "1000");
-      coursesFetchParam.set("sort", "all");
-      coursesFetchParam.set("normal", '{"version":7,"apiVersion":"1.1.0"}');
-      coursesFetchParam.set(
-        "conditions",
-        JSON.stringify({
-          role: [],
-          semester_id: semesters.map((v) => v.id),
-          academic_year_id: [],
-          status: ["ongoing", "notStarted"],
-          course_type: [],
-          effectiveness: [],
-          published: [],
-          display_studio_list: false,
-        })
-      );
-      coursesFetchParam.set(
-        "fields",
-        "id,org_id,name,second_name,department(id,name),instructors(name),grade(name),klass(name),cover,learning_mode,course_attributes(teaching_class_name,data),public_scope,course_type,course_code,compulsory,credit,second_name"
-      );
-
-      //   console.log(coursesFetchParam.toString(),decodeURIComponent(coursesFetchParam.toString()));
-
-      return courses
-        .fetch(
-          "https://courses.zju.edu.cn/api/my-courses?" +
-            coursesFetchParam.toString()
-        )
-        .then((v) => v.json());
-    })
-    .then(({ courses }) => {
-      return inquirer.prompt({
-        type: "list",
-        name: "course",
-        message: "Choose the course :",
-        loop: true,
-        choices: courses.map((course) => ({
-          name: course.name,
-          value: course,
-        })),
-      });
-    })
-    .then(async ({ course }) => {
+ pickCourseId(courses)
+    .then(async ( courseId ) => {
       // console.log(course);
 
       return courses
-        .fetch(`https://courses.zju.edu.cn/api/courses/${course.id}/activities`)
+        .fetch(`https://courses.zju.edu.cn/api/courses/${courseId}/activities`)
         .then((v) => v.json());
     })
     .then(({ activities }) => {

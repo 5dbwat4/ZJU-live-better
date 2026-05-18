@@ -6,6 +6,7 @@ import fs from "fs";
 import path from "path";
 
 import "dotenv/config";
+import { pickCourseId } from "../shared/choose-a-course.js";
 
 const coursesClient = new COURSES(
 	new ZJUAM(process.env.ZJU_USERNAME, process.env.ZJU_PASSWORD)
@@ -18,68 +19,9 @@ const sanitizeFileName = (name) =>
 		.replace(/_+/g, "_")
 		.replace(/^_|_$/g, "");
 
-const getActiveSemesters = async () => {
-	const response = await coursesClient.fetch(
-		"https://courses.zju.edu.cn/api/my-semesters?fields=id,name,sort,is_active,code"
-	);
-	const { semesters } = await response.json();
-	return semesters.filter((semester) => semester.is_active);
-};
-
-const getCourses = async (semesterIds) => {
-	const coursesFetchParam = new URLSearchParams();
-	coursesFetchParam.set("page", "1");
-	coursesFetchParam.set("page_size", "1000");
-	coursesFetchParam.set("sort", "all");
-	coursesFetchParam.set("normal", '{"version":7,"apiVersion":"1.1.0"}');
-	coursesFetchParam.set(
-		"conditions",
-		JSON.stringify({
-			role: [],
-			semester_id: semesterIds,
-			academic_year_id: [],
-			status: ["ongoing", "notStarted"],
-			course_type: [],
-			effectiveness: [],
-			published: [],
-			display_studio_list: false,
-		})
-	);
-	coursesFetchParam.set(
-		"fields",
-		"id,org_id,name,second_name,department(id,name),instructors(name),grade(name),klass(name),cover,learning_mode,course_attributes(teaching_class_name,data),public_scope,course_type,course_code,compulsory,credit,second_name"
-	);
-
-	const response = await coursesClient.fetch(
-		"https://courses.zju.edu.cn/api/my-courses?" + coursesFetchParam.toString()
-	);
-	const { courses } = await response.json();
-	return courses;
-};
 
 (async () => {
-	const semesters = await getActiveSemesters();
-	if (!semesters.length) {
-		console.error("当前没有可用学期，无法初始化配置文件。");
-		process.exit(1);
-	}
-
-	const courses = await getCourses(semesters.map((v) => v.id));
-	if (!courses.length) {
-		console.error("当前没有可选课程，无法初始化配置文件。");
-		process.exit(1);
-	}
-
-	const { course } = await inquirer.prompt({
-		type: "list",
-		name: "course",
-		message: "请选择课程：",
-		loop: true,
-		choices: courses.map((v) => ({
-			name: v.name,
-			value: v,
-		})),
-	});
+	const courseId = await pickCourseId(coursesClient);
 
 	const { folder } = await inquirer.prompt({
 		type: "input",
@@ -111,7 +53,7 @@ const getCourses = async (semesterIds) => {
 
 	const config = {
 		root: resolvedFolder,
-		xid: String(course.id),
+		xid: String(courseId),
 		cache: [],
 	};
 
