@@ -19,6 +19,7 @@ const scripts = [
   { name: '智云课堂: 获取视频链接 (getVideoURL)', value: 'classroom.zju/getVideoURL.js' },
   { name: 'Webplus: 保存通知及附件 (saveDoc)', value: 'webplus.zju/saveDoc.js' },
   { name: '图书馆: 查询已借阅图书并操作续借', value: 'lib.zju/bookList.js' },
+  { name: '学在浙大: 查看作业和考试分数 (scores)', value: 'courses.zju/scores.js' },
   { name: 'courses.zju/materialMaintainer_init.js', value: 'courses.zju/materialMaintainer_init.js' },
   { name: 'courses.zju/materialMaintainer.js', value: 'courses.zju/materialMaintainer.js' },
 ];
