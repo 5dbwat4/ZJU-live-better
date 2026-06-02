@@ -158,34 +158,53 @@ class CourseExporter {
 
   async getPptData() {
     const base = "https://classroom.zju.edu.cn/pptnote/v1/schedule/search-ppt";
-    let page = 1;
-    while (true) {
-      const params = new URLSearchParams({
-        course_id: String(this.courseId),
-        sub_id: String(this.subId),
-        page: String(page),
-        per_page: "100",
-      });
-      const res = await this.classroomInstance.fetch(`${base}?${params.toString()}`);
-      if (!res.ok) throw new Error(`PPT request failed: ${res.status}`);
-      const data = await res.json();
-      if (data && data.list && data.list.length) {
-        for (const item of data.list) {
-          let content = item.content;
-          try {
-            content = typeof content === "string" ? JSON.parse(content) : content;
-          } catch (e) {
-            content = {};
-          }
-          this.pptData.push({
-            pptimgurl: content.pptimgurl || "",
-            created_sec: Number(item.created_sec || 0),
-          });
-        }
-        page++;
-      } else {
-        break;
+    // let page = 1;
+    // while (true) {
+    //   const params = new URLSearchParams({
+    //     course_id: String(this.courseId),
+    //     sub_id: String(this.subId),
+    //     page: String(page),
+    //     per_page: "100",
+    //   });
+    //   const res = await this.classroomInstance.fetch(`${base}?${params.toString()}`);
+    //   if (!res.ok) throw new Error(`PPT request failed: ${res.status}`);
+    //   const data = await res.json();
+    //   if (data && data.list && data.list.length) {
+    //     for (const item of data.list) {
+    //       let content = item.content;
+    //       try {
+    //         content = typeof content === "string" ? JSON.parse(content) : content;
+    //       } catch (e) {
+    //         content = {};
+    //       }
+    //       this.pptData.push({
+    //         pptimgurl: content.pptimgurl || "",
+    //         created_sec: Number(item.created_sec || 0),
+    //       });
+    //     }
+    //     page++;
+    //   } else {
+    //     break;
+    //   }
+    // }
+    const params = new URLSearchParams({
+      course_id: String(this.courseId),
+      sub_id: String(this.subId),
+    });
+    const res = await this.classroomInstance.fetch(`${base}?${params.toString()}`);
+    if (!res.ok) throw new Error(`PPT request failed: ${res.status}`);
+    const data = await res.json();
+    for (const item of data.list) {
+      let content = item.content;
+      try {
+        content = typeof content === "string" ? JSON.parse(content) : content;
+      } catch (e) {
+        content = {};
       }
+      this.pptData.push({
+        pptimgurl: content.pptimgurl || "",
+        created_sec: Number(item.created_sec || 0),
+      });
     }
     console.log(`Fetched ${this.pptData.length} PPT entries`);
   }
