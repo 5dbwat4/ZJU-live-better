@@ -143,3 +143,6 @@ dist
 #####
 
 debug/
+
+# Generated quiz answer HTML files (courses.zju/quizanswer.js)
+courses.zju/QA*.html
