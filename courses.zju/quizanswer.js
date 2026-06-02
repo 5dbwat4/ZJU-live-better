@@ -127,9 +127,10 @@ const courses = new COURSES(
           });
 
           if (confirm) {
+            const safeName = `${course.name}-${classroom.title}`.replace(/[\\/:*?"<>|\s]+/g, "_");
             const outputfile = path.join(
               path.dirname(fileURLToPath(import.meta.url)),
-              "QA.html"
+              `QA-${safeName}.html`
             );
             fs.writeFileSync(
               outputfile,
