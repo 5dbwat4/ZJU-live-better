@@ -1,16 +1,17 @@
 /* 自动评教 (alt.zju.edu.cn / 学生评教系统) */
 // 给所有待评教课程的每位教师提交满分（5/5）评价。
-// 启动时可选择「一键全部提交」或「交互选择课程后提交」。
+// 登录与鉴权复用 login-zju 的 ALT（自动跟随重定向取 token 并注入 Bearer 头）。
+// 启动时可选择「一键全部提交」或「逐门课程确认后提交」。
 
 import chalk from "chalk";
 import inquirer from "inquirer";
-import { ZJUAM } from "login-zju";
+import { ALT, ZJUAM } from "login-zju";
 import "dotenv/config";
 
-const z = new ZJUAM(process.env.ZJU_USERNAME, process.env.ZJU_PASSWORD);
+const alt = new ALT(
+  new ZJUAM(process.env.ZJU_USERNAME, process.env.ZJU_PASSWORD)
+);
 
-const authorizeURL =
-  "https://alt.zju.edu.cn/ua/login?platform=WEB&target=%2FstudentEvaluationBackend%2Flist";
 const getListURL =
   "https://alt.zju.edu.cn/dapi/v2/tes/evaluation_plan_service/page_my_todo_plan_course_list";
 const getCourseURL =
@@ -41,49 +42,29 @@ const judgeInfo = {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// 带 Bearer JWT 的 POST，返回解析后的 JSON（非 JSON 响应原样返回到 __raw 以便排查）
-async function post(url, jwt, payload) {
-  const res = await z.fetch(url, {
+// 评教接口 POST 封装。鉴权（Bearer token）与 Content-Type 由 ALT 自动注入；
+// ALT.fetch 在非 200 时会抛错，故调用处需自行 try/catch。
+async function post(url, payload) {
+  const res = await alt.fetch(url, {
     method: "POST",
-    headers: { Authorization: "Bearer " + jwt, "content-type": "application/json" },
     body: JSON.stringify(payload),
   });
-  const text = await res.text();
-  try {
-    return JSON.parse(text);
-  } catch {
-    return { __raw: text };
-  }
-}
-
-// 跟随重定向链，从 URL 的 ?token= 中取出评教系统的 JWT
-async function getToken() {
-  let res = await z.fetch(authorizeURL, {
-    method: "GET",
-    redirect: "manual",
-    headers: { referer: "https://alt.zju.edu.cn/studentEvaluationBackend/list" },
-  });
-  let loc = res.headers.get("Location");
-  let prev = authorizeURL;
-  for (let hop = 0; hop < 20; hop++) {
-    if (!loc) throw new Error(`重定向第 ${hop} 跳缺少 Location 头`);
-    const u = new URL(loc, prev);
-    const token = u.searchParams.get("token");
-    if (token) return token;
-    prev = u.toString();
-    res = await z.fetch(prev, { redirect: "manual" });
-    loc = res.headers.get("Location");
-  }
-  throw new Error("跟随 20 次重定向后仍未找到 token");
+  return res.json();
 }
 
 // 提交某门课程：创建评教表单并为指定教师逐个提交满分
-async function submitCourse(jwt, id, courseName, groupId, teacherList) {
+async function submitCourse(id, courseName, groupId, teacherList) {
   let ok = 0;
   let fail = 0;
 
-  const formResp = await post(createFormURL, jwt, { groupId, value: judgeInfo });
-  const formId = formResp?.data;
+  let formId;
+  try {
+    const formResp = await post(createFormURL, { groupId, value: judgeInfo });
+    formId = formResp?.data;
+  } catch (e) {
+    console.log(chalk.red(`  [${courseName}] 创建评教表单失败：${e.message}`));
+    return { ok, fail: teacherList.length };
+  }
   if (!formId) {
     console.log(chalk.red(`  [${courseName}] 创建评教表单失败，跳过。`));
     return { ok, fail: teacherList.length };
@@ -92,23 +73,27 @@ async function submitCourse(jwt, id, courseName, groupId, teacherList) {
   for (const [ti, teacher] of teacherList.entries()) {
     const sid = teacher.userSid;
     const teacherName = teacher.userName || sid;
-    const saveResp = await post(saveJudgeURL, jwt, {
-      planCourseId: id,
-      teaching: true,
-      formId,
-      teaSid: sid,
-    });
-
-    if (saveResp?.code === 200) {
-      ok++;
-      console.log(chalk.green(`  教师[${ti}] ${teacherName} (${sid}) 成功`));
-    } else {
+    try {
+      const saveResp = await post(saveJudgeURL, {
+        planCourseId: id,
+        teaching: true,
+        formId,
+        teaSid: sid,
+      });
+      if (saveResp?.code === 200) {
+        ok++;
+        console.log(chalk.green(`  教师[${ti}] ${teacherName} (${sid}) 成功`));
+      } else {
+        fail++;
+        console.log(
+          chalk.red(
+            `  教师[${ti}] ${teacherName} (${sid}) 失败 code=${saveResp?.code} msg=${saveResp?.msg ?? saveResp?.message ?? ""}`
+          )
+        );
+      }
+    } catch (e) {
       fail++;
-      console.log(
-        chalk.red(
-          `  教师[${ti}] ${teacherName} (${sid}) 失败 code=${saveResp?.code} msg=${saveResp?.msg ?? saveResp?.message ?? ""}`
-        )
-      );
+      console.log(chalk.red(`  教师[${ti}] ${teacherName} (${sid}) 失败：${e.message}`));
     }
     await sleep(200); // rate limit
   }
@@ -137,10 +122,8 @@ async function main() {
       },
     ]);
 
-    console.log(chalk.blue("[AutoJudge] 正在登录并获取评教token..."));
-    const jwt = await getToken();
-
-    const listResp = await post(getListURL, jwt, { pageNum: 0, pageSize: 20 });
+    console.log(chalk.blue("[AutoJudge] 正在登录并获取待评教课程..."));
+    const listResp = await post(getListURL, { pageNum: 0, pageSize: 20 });
     const list = listResp?.data?.data ?? [];
     console.log(chalk.blue(`[AutoJudge] 找到 ${list.length} 门待评教课程`));
 
@@ -155,11 +138,19 @@ async function main() {
     // 逐门课程处理：交互模式下每门课单独询问，一键模式下直接提交
     for (const [i, course] of list.entries()) {
       const id = String(course.id);
-      const detail = (await post(getCourseURL, jwt, { planCourseId: id }))?.data;
+      const tag = `[课程 ${i + 1}/${list.length}]`;
+
+      let detail;
+      try {
+        detail = (await post(getCourseURL, { planCourseId: id }))?.data;
+      } catch (e) {
+        fail++;
+        console.log(chalk.red(`${tag} 获取课程详情失败：${e.message}`));
+        continue;
+      }
       const groupId = detail?.groupId;
       const teacherList = detail?.teacherList ?? [];
-      const courseName = detail?.courseName;
-      const tag = `[课程 ${i + 1}/${list.length}]`;
+      const courseName = detail?.courseName ?? id;
 
       if (!groupId) {
         fail++;
@@ -224,7 +215,7 @@ async function main() {
         );
       }
 
-      const r = await submitCourse(jwt, id, courseName, groupId, chosenTeachers);
+      const r = await submitCourse(id, courseName, groupId, chosenTeachers);
       ok += r.ok;
       fail += r.fail;
     }
