@@ -77,10 +77,50 @@ async function getToken() {
   throw new Error("跟随 20 次重定向后仍未找到 token");
 }
 
-// 课程选择项的可读标签：优先用接口返回的 courseName，附带 id 方便区分
-function courseLabel(course) {
-  const name = course.courseName;
-  return `${name}  ${chalk.gray(`[id:${course.id}]`)}`;
+// 提交某门课程：创建评教表单并为指定教师逐个提交满分
+async function submitCourse(jwt, id, courseName, groupId, teacherList) {
+  let ok = 0;
+  let fail = 0;
+
+  const formResp = await post(createFormURL, jwt, { groupId, value: judgeInfo });
+  const formId = formResp?.data;
+  if (!formId) {
+    console.log(chalk.red(`  [${courseName}] 创建评教表单失败，跳过。`));
+    return { ok, fail: teacherList.length };
+  }
+
+  for (const [ti, teacher] of teacherList.entries()) {
+    const sid = teacher.userSid;
+    const teacherName = teacher.userName || sid;
+    const saveResp = await post(saveJudgeURL, jwt, {
+      planCourseId: id,
+      teaching: true,
+      formId,
+      teaSid: sid,
+    });
+
+    if (saveResp?.code === 200) {
+      ok++;
+      console.log(chalk.green(`  教师[${ti}] ${teacherName} (${sid}) 成功`));
+    } else {
+      fail++;
+      console.log(
+        chalk.red(
+          `  教师[${ti}] ${teacherName} (${sid}) 失败 code=${saveResp?.code} msg=${saveResp?.msg ?? saveResp?.message ?? ""}`
+        )
+      );
+    }
+    await sleep(200); // rate limit
+  }
+
+  return { ok, fail };
+}
+
+// 教师选择项标签（标注已评教的教师）
+function teacherLabel(teacher) {
+  const name = teacher.userName || teacher.userSid;
+  const filled = teacher.filled ? chalk.yellow("（已评）") : "";
+  return `${name} (${teacher.userSid})${filled}`;
 }
 
 async function main() {
@@ -91,8 +131,8 @@ async function main() {
         name: "mode",
         message: "请选择评教方式：",
         choices: [
-          { name: "一键全部提交（所有待评教课程，全部满分）", value: "all" },
-          { name: "交互选择要评教的课程（全部满分）", value: "interactive" },
+          { name: "一键全部提交", value: "all" },
+          { name: "逐门课程确认后提交", value: "interactive" },
         ],
       },
     ]);
@@ -109,93 +149,84 @@ async function main() {
       return;
     }
 
-    let targets = list;
-    if (mode === "interactive") {
-      const { picked } = await inquirer.prompt([
-        {
-          type: "checkbox",
-          name: "picked",
-          message: "选择要评教的课程（空格选择，回车确认）：",
-          pageSize: 20,
-          loop: false,
-          choices: list.map((course, i) => ({
-            name: courseLabel(course),
-            value: i,
-            checked: true,
-          })),
-        },
-      ]);
-
-      if (picked.length === 0) {
-        console.log(chalk.yellow("未选择任何课程，已退出。"));
-        return;
-      }
-      targets = picked.map((i) => list[i]);
-
-      const { confirm } = await inquirer.prompt([
-        {
-          type: "confirm",
-          name: "confirm",
-          message: `将以满分提交 ${targets.length} 门课程的评教，确认？`,
-          default: false,
-        },
-      ]);
-      if (!confirm) {
-        console.log(chalk.yellow("已取消。"));
-        return;
-      }
-    }
-
     let ok = 0;
     let fail = 0;
-    for (const [i, course] of targets.entries()) {
-      const id = String(course.id);
 
-      const courseResp = await post(getCourseURL, jwt, { planCourseId: id });
-      const groupId = courseResp?.data?.groupId;
-      const teacherList = courseResp?.data?.teacherList ?? [];
-      const courseName = courseResp?.data?.courseName || course.courseName || id;
+    // 逐门课程处理：交互模式下每门课单独询问，一键模式下直接提交
+    for (const [i, course] of list.entries()) {
+      const id = String(course.id);
+      const detail = (await post(getCourseURL, jwt, { planCourseId: id }))?.data;
+      const groupId = detail?.groupId;
+      const teacherList = detail?.teacherList ?? [];
+      const courseName = detail?.courseName;
+      const tag = `[课程 ${i + 1}/${list.length}]`;
 
       if (!groupId) {
         fail++;
-        console.log(chalk.red(`[课程 ${i}] ${courseName} 获取详情失败，跳过。`));
+        console.log(chalk.red(`${tag} ${courseName} 获取详情失败，跳过。`));
         continue;
       }
 
-      const formResp = await post(createFormURL, jwt, { groupId, value: judgeInfo });
-      const formId = formResp?.data;
-      if (!formId) {
-        fail++;
-        console.log(chalk.red(`[课程 ${i}] ${courseName} 创建评教表单失败，跳过。`));
-        continue;
-      }
+      let chosenTeachers = teacherList;
 
-      console.log(
-        chalk.bold(`\n[课程 ${i}] ${courseName}  ${teacherList.length} 位教师`)
-      );
-      for (const [ti, teacher] of teacherList.entries()) {
-        const sid = teacher.userSid;
-        const teacherName = teacher.userName || sid;
-        const saveResp = await post(saveJudgeURL, jwt, {
-          planCourseId: id,
-          teaching: true,
-          formId,
-          teaSid: sid,
-        });
+      if (mode === "interactive") {
+        const names = teacherList.map((t) => t.userName || t.userSid).join("、");
+        console.log(
+          chalk.bold(`\n${tag} ${courseName}`) +
+            chalk.gray(`  ${teacherList.length} 位教师：${names}`)
+        );
 
-        if (saveResp?.code === 200) {
-          ok++;
-          console.log(chalk.green(`  教师[${ti}] ${teacherName} (${sid}) 成功`));
-        } else {
-          fail++;
-          console.log(
-            chalk.red(
-              `  教师[${ti}] ${teacherName} (${sid}) 失败 code=${saveResp?.code} msg=${saveResp?.msg ?? saveResp?.message ?? ""}`
-            )
-          );
+        const { action } = await inquirer.prompt([
+          {
+            type: "list",
+            name: "action",
+            message: "如何处理本门课程？",
+            choices: [
+              { name: "提交（全部教师满分）", value: "all" },
+              { name: "选择教师后提交（满分）", value: "select" },
+              { name: "跳过本课程", value: "skip" },
+              { name: "退出", value: "quit" },
+            ],
+          },
+        ]);
+
+        if (action === "quit") {
+          console.log(chalk.yellow("已退出。"));
+          break;
         }
-        await sleep(200); // rate limit
+        if (action === "skip") {
+          console.log(chalk.gray("已跳过。"));
+          continue;
+        }
+        if (action === "select") {
+          const { picked } = await inquirer.prompt([
+            {
+              type: "checkbox",
+              name: "picked",
+              message: "选择要评教的教师（空格选择，回车确认）：",
+              loop: false,
+              choices: teacherList.map((t, ti) => ({
+                name: teacherLabel(t),
+                value: ti,
+                checked: true,
+              })),
+            },
+          ]);
+          if (picked.length === 0) {
+            console.log(chalk.gray("未选择教师，已跳过本课程。"));
+            continue;
+          }
+          chosenTeachers = picked.map((ti) => teacherList[ti]);
+        }
+      } else {
+        console.log(
+          chalk.bold(`\n${tag} ${courseName}  ${teacherList.length} 位教师`)
+        );
       }
+
+      const r = await submitCourse(jwt, id, courseName, groupId, chosenTeachers);
+      ok += r.ok;
+      fail += r.fail;
     }
 
     console.log(chalk.bold(`\n完成。成功 ${ok}，失败 ${fail}。`));
