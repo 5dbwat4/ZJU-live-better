@@ -22,6 +22,7 @@ const scripts = [
   { name: '学在浙大: 查看作业和考试分数 (scores)', value: 'courses.zju/scores.js' },
   { name: 'courses.zju/materialMaintainer_init.js', value: 'courses.zju/materialMaintainer_init.js' },
   { name: 'courses.zju/materialMaintainer.js', value: 'courses.zju/materialMaintainer.js' },
+  { name: '评教: 自动评教 (autojudge)', value: 'alt.zju/autojudge.js' },
 ];
 
 async function main() {
