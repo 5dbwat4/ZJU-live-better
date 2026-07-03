@@ -19,7 +19,7 @@
     "dotenv": "^16.6.1",
     "express": "^4.21.2",
     "inquirer": "^12.11.1",
-    "login-zju": "^1.0.8",
+    "login-zju": "^1.0.9",
     "uuid": "^11.1.0"
   },
   "description": "",
