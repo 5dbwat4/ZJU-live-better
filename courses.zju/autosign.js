@@ -124,13 +124,14 @@ let we_are_bruteforcing = [];
               return;
             }
             if (rollcall.is_number) {
-              if(we_are_bruteforcing.includes(rollcallId)){
-                console.log("[Auto Sign-in] We are already bruteforcing rollcall #" + rollcallId);
-                return;
-              }
-              we_are_bruteforcing.push(rollcallId);
-              sendBoth(`[Auto Sign-in] Bruteforcing new number rollcall #${rollcallId}: ${rollcall.title} @ ${rollcall.course_title} by ${rollcall.created_by_name} (${rollcall.department_name})`);
-              batchNumberRollCall(rollcallId);
+              // if(we_are_bruteforcing.includes(rollcallId)){
+              //   console.log("[Auto Sign-in] We are already bruteforcing rollcall #" + rollcallId);
+              //   return;
+              // }
+              // we_are_bruteforcing.push(rollcallId);
+              // sendBoth(`[Auto Sign-in] Bruteforcing new number rollcall #${rollcallId}: ${rollcall.title} @ ${rollcall.course_title} by ${rollcall.created_by_name} (${rollcall.department_name})`);
+              // batchNumberRollCall(rollcallId);
+              sendBoth(`[Auto Sign-in] New number rollcall #${rollcallId}: ${rollcall.title} @ ${rollcall.course_title} by ${rollcall.created_by_name} (${rollcall.department_name})`); // No more bruteforce as it comsumed all attempts
               return;
             }
             // None of the above.
