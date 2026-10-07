@@ -52,12 +52,21 @@ function formatDueLine(endTime) {
   return `Remains ${time_later(endTime)} (DDL ${endTime.toLocaleString()})`;
 }
 
-function expandActiveSemesterIds(semesters) {
-  const activeSemesterIds = semesters
-    .filter((semester) => semester.is_active)
-    .flatMap((semester) => [semester.id, semester.id + 1, semester.id + 2]);
+function getActiveSemesterIds(semesters, now = new Date()) {
+  const today = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Shanghai",
+  }).format(now);
 
-  return [...new Set(activeSemesterIds)];
+  return semesters
+    .filter((semester) => {
+      if (!semester.start_date || !semester.end_date) {
+        throw new Error(
+          `学期 ${semester.id} 缺少起止日期，无法判断是否为当前学期`
+        );
+      }
+      return semester.start_date <= today && today <= semester.end_date;
+    })
+    .map((semester) => semester.id);
 }
 
 // courses.zju.edu.cn
@@ -69,12 +78,13 @@ async function getCoursesZjuTodos() {
 
   // 1. 获取活跃学期
   const semestersResp = await courses.fetch(
-    "https://courses.zju.edu.cn/api/my-semesters?fields=id,name,sort,is_active,code"
+    "https://courses.zju.edu.cn/api/my-semesters?fields=id,name,start_date,end_date"
   );
   const { semesters } = await semestersResp.json();
-  const activeSemesterIds = expandActiveSemesterIds(semesters);
+  const activeSemesterIds = getActiveSemesterIds(semesters);
+  if (activeSemesterIds.length === 0) return [];
 
-  // 2. 获取活跃学期及其相邻短学期的所有课程
+  // 2. 获取当前日期内所有学期（含长、短学期）的课程
   const coursesFetchParam = new URLSearchParams();
   coursesFetchParam.set("page", "1");
   coursesFetchParam.set("page_size", "1000");
@@ -137,6 +147,10 @@ async function getCoursesZjuTodos() {
       const submittedExamIdSet = new Set(submittedExamIds || []);
 
       for (const activity of activities || []) {
+        if (
+          activity.type === "material" &&
+          activity.completion_criterion_key === "none"
+        ) continue;
         if (!isActive(activity)) continue;
         if (activity.type === "homework" && submittedHomeworkIds.has(activity.id)) continue;
         if (activity.completion_criterion_key === "score" && parseFloat(activity.score_percentage) >= 1) continue;
