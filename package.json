@@ -2,7 +2,11 @@
   "name": "zju-live-better",
   "version": "1.0.0",
   "main": "index.js",
-  "scripts": {},
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "pintia:check": "node courses.zju/pintia.js",
+    "pintia:login": "node courses.zju/pintia.js --login"
+  },
   "bin":{
     "zlb": "./shared/cli-entry.js"
   },
@@ -20,6 +24,7 @@
     "express": "^4.21.2",
     "inquirer": "^12.11.1",
     "login-zju": "^1.0.9",
+    "playwright": "^1.61.0",
     "uuid": "^11.1.0"
   },
   "description": "",

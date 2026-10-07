@@ -8,7 +8,11 @@ A collection of useful scripts helping you live better in ZJU.
 
 运行`npm install`安装依赖
 
-如果你要使用 `courses.zju/reliableTodolist.js` 里的 Pintia 待办抓取，需要先在浏览器登录 Pintia，然后从 DevTools 中复制请求的 `Cookie` 头，配置到 `.env` 的 `PINTIA_COOKIE`。
+如果你要使用 Pintia 待办抓取，在 `.env` 配置 PTA 的 `PINTIA_USERNAME`（登录邮箱或手机号）和 `PINTIA_PASSWORD`，然后运行 `npx playwright install chromium` 安装登录使用的浏览器。
+
+运行 `npm run pintia:check` 可单独检查 PTA 的未截止题目集及截止时间。程序优先复用保存在 `data/pintia/storage-state.json` 的登录状态，失效后通过无头浏览器重新登录；网页登录和题目集请求使用直连，不使用系统代理。首次登录或风控要求验证码时，运行 `npm run pintia:login`，在打开的浏览器中完成验证，再继续自动抓取。
+
+`courses.zju/reliableTodolist.js` 共用上述 PTA 登录逻辑。未配置账号密码时，仍支持手动设置 `PINTIA_COOKIE`。账号密码和会话文件不应提交到仓库。原有题目集请求每次最多获取 100 项。
 
 使用时，在working dir下运行`node path/to/script`，其中`path/to/script`是指向脚本的路径，例如`classroom.zju/generateCourseMd`
 

@@ -4,8 +4,8 @@
  */
 
 import { COURSES, ZJUAM } from "login-zju";
-import axios from "axios";
 import "dotenv/config";
+import { getPintiaProblemSets } from "../shared/pintia.js";
 
 // 工具函数
 
@@ -23,24 +23,6 @@ function time_later(end) {
     }
   }
   return `${value} ${unit}`;
-}
-
-async function fetchPintiaProblemSets(cookie, filter) {
-  return axios.get("https://pintia.cn/api/problem-sets", {
-    params: {
-      filter,
-      limit: 100,
-      order_by: "END_AT",
-      asc: true,
-    },
-    headers: {
-      Accept: "application/json;charset=UTF-8",
-      "Accept-Language": "zh-CN",
-      Cookie: cookie,
-      Referer: "https://pintia.cn/problem-sets/dashboard",
-    },
-    validateStatus: () => true,
-  });
 }
 
 function todoSortTime(todo) {
@@ -188,26 +170,7 @@ async function getCoursesZjuTodos() {
 // pintia.cn
 
 async function getPintiaTodos() {
-  const cookie = process.env.PINTIA_COOKIE?.trim();
-  if (!cookie) {
-    console.error("[pintia] 未配置 PINTIA_COOKIE，跳过 pintia 作业获取。");
-    return [];
-  }
-
-  // 4. 获取近期未截止的 problem sets（endAtAfter = 昨天 UTC 0点）
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  yesterday.setUTCHours(0, 0, 0, 0);
-  const filter = JSON.stringify({ endAtAfter: yesterday.toISOString() });
-
-  const psResp = await fetchPintiaProblemSets(cookie, filter);
-  if (psResp.status !== 200) {
-    throw new Error(
-      `[pintia] 获取作业列表失败 (${psResp.status}): ${JSON.stringify(psResp.data)}`
-    );
-  }
-
-  const { problemSets = [] } = psResp.data || {};
+  const problemSets = await getPintiaProblemSets();
   const now = new Date();
 
   return problemSets
