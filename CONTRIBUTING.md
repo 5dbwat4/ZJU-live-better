@@ -29,4 +29,12 @@ Commit Message : Please follow [Conventional Commits](https://www.conventionalco
 
 我比较倾向于“约定优于配置”。如果你希望为现有脚本增加大量配置项，请编写新的脚本，而不是修改原有脚本。配置信息建议统一存放在 `.env` 文件中。
 
-如果所添加的配置不具备广泛通用性，请在脚本开头以注释形式说明用户需要做的额外配置，而不要修改 README 文件。
+如果所添加的配置不具备广泛通用性，请在脚本开头以注释形式说明用户需要做的额外配置，而不要修改 README 文件或者 `.env.example`。
+
+## 保持轻量
+
+有很多人会将该应用中的脚本放置在服务器上运行，在这个前提下轻量化是很重要的需求，因此你也可以看到我们在选择dependencies时非常克制。敬请尊重我们的这个需求：不要尝试添加playwright/puppeteer，如果能用原生fetch解决就不要引入axios，最好不要整express/fastify（至少我目前没有看到必要性），总而言之就是如果一个库没有显著存在的必要和通用性那就不要写。
+
+## 如果你对登录流程有意见，去login-zju里提出，而不是往脚本中引入复杂的fetch/解码/cookie操作/其它trade-off
+
+login-zju请见：https://github.com/5dbwat4/login-zju
