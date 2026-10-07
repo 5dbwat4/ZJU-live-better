@@ -145,5 +145,8 @@ dist
 
 debug/
 
+# PTA authentication state (contains private session cookies)
+/data/pintia/
+
 # Generated quiz answer HTML files (courses.zju/quizanswer.js)
 courses.zju/QA*.html
