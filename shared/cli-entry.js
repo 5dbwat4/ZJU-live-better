@@ -11,6 +11,7 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 const scripts = [
   { name: '学在浙大: 生成作业待办 (todolist)', value: 'courses.zju/todolist.js' },
   { name: '学在浙大: 可靠待办列表 (reliableTodolist)', value: 'courses.zju/reliableTodolist.js' },
+  { name: 'PTA: 获取题目集和截止时间', value: 'courses.zju/pintia.js' },
   { name: '学在浙大: 下载课件 (materialDown)', value: 'courses.zju/materialDown.js' },
   { name: 'courses.zju/autosign.js', value: 'courses.zju/autosign.js' },
   { name: 'courses.zju/quizanswer.js', value: 'courses.zju/quizanswer.js' },
