@@ -29,7 +29,7 @@ const RadarInfo = {
 //      如果失败了>3次，则会尝试三点定位法
 
 // 成功率：目前【雷达点名】+【已配置了雷达地点】的情况可以100%签到成功
-//        数字点名已测试，已成功，确定远程没有限速，没有calm down，但是目前单线程，可能会有点慢，
+//        数字点名通过 timetable_rollcalls 获取数字码；最多提交一次，不爆破
 //        三点定位法已完成，感谢@eWloYW8
 
 // 顺便一提，经测试，radar_out_of_scope的限制是500米整
@@ -50,7 +50,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 let req_num = 0;
 
-let we_are_bruteforcing = [];
+const handledNumberRollcalls = new Set();
 
 // if (false)
 (async () => {
@@ -124,14 +124,14 @@ let we_are_bruteforcing = [];
               return;
             }
             if (rollcall.is_number) {
-              // if(we_are_bruteforcing.includes(rollcallId)){
-              //   console.log("[Auto Sign-in] We are already bruteforcing rollcall #" + rollcallId);
-              //   return;
-              // }
-              // we_are_bruteforcing.push(rollcallId);
-              // sendBoth(`[Auto Sign-in] Bruteforcing new number rollcall #${rollcallId}: ${rollcall.title} @ ${rollcall.course_title} by ${rollcall.created_by_name} (${rollcall.department_name})`);
-              // batchNumberRollCall(rollcallId);
-              sendBoth(`[Auto Sign-in] New number rollcall #${rollcallId}: ${rollcall.title} @ ${rollcall.course_title} by ${rollcall.created_by_name} (${rollcall.department_name})`); // No more bruteforce as it comsumed all attempts
+              if (handledNumberRollcalls.has(rollcallId)) return;
+              handledNumberRollcalls.add(rollcallId);
+
+              sendBoth(`[Auto Sign-in] Answering new number rollcall #${rollcallId}: ${rollcall.title} @ ${rollcall.course_title} by ${rollcall.created_by_name} (${rollcall.department_name})`);
+              handleNumberRollcall(rollcall).catch((error) => {
+                console.error(`[Auto Sign-in] Number Rollcall ${rollcallId} failed:`, error);
+                sendBoth(`[Auto Sign-in] Number Rollcall ${rollcallId} failed: ${error.message}. Please answer manually.`);
+              });
               return;
             }
             // None of the above.
@@ -374,124 +374,85 @@ async function answerRadarRollcall(radarXY, rid) {
 }
 
 async function answerNumberRollcall(numberCode, rid) {
-  return await courses
-    .fetch(
-      "https://courses.zju.edu.cn/api/rollcall/" +
-        rid +
-        "/answer_number_rollcall",
-      {
-        body: JSON.stringify({
-          deviceId: uuidv4(),
-          numberCode,
-        }),
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          // "X-Session-Id": courses.session,
-        },
-      }
-    )
-    .then(async(vd) => {
-      // console.log(vd.status, vd.statusText);
-      // console.log(await vd.text());
-      /*
-      When fail:
-      400 BAD REQUEST
-      {"error_code":"wrong_number_code","message":"wrong number code","number_code":"6921"}
-      When success:
-      200 OK
-      {"id":5427153,"status":"on_call"}
+  const response = await courses.fetch(
+    "https://courses.zju.edu.cn/api/rollcall/" +
+      rid +
+      "/answer_number_rollcall",
+    {
+      body: JSON.stringify({
+        deviceId: uuidv4(),
+        numberCode,
+      }),
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
+  );
 
-       */
-
-      
-      if (vd.status != 200 || vd.error_code?.includes("wrong")) {
-        return false;
-      }
-      return true;
-    });
+  const outcome = await response.json().catch(() => null);
+  const status = outcome?.status_name ?? outcome?.status;
+  return response.ok && ["on_call", "on_call_fine"].includes(status);
 }
 
-let currentBatchingRCs = [];
-async function batchNumberRollCall(rid) {
-  if (currentBatchingRCs.includes(rid)) return;
+async function handleNumberRollcall(rollcall) {
+  const rollcallId = rollcall.rollcall_id;
+  const numberCode = await getNumberCode(rollcall);
 
-  currentBatchingRCs.push(rid);
+  if (!numberCode) {
+    sendBoth(`[Auto Sign-in] Number Rollcall ${rollcallId}: number code is unavailable. Please answer manually.`);
+    return false;
+  }
 
-  const state = new Map();
-  state.set("found", false);
+  const success = await answerNumberRollcall(numberCode, rollcallId);
+  if (success) {
+    sendBoth(`[Auto Sign-in] Number Rollcall ${rollcallId} succeeded.`);
+  } else {
+    sendBoth(`[Auto Sign-in] Number Rollcall ${rollcallId} failed. Not retrying to preserve remaining attempts.`);
+  }
+  return success;
+}
 
-  const data = await getNumberCode(rid);
-  const numberCode = data?.number_code;
+async function getNumberCode(rollcall) {
+  const rollcallId = rollcall.rollcall_id;
+  if (!rollcall.course_id || !rollcall.rollcall_time) return null;
 
-  answerNumberRollcall(numberCode, rid).then((success) => {
-    if (state.get("found")) return;
+  const startTime = new Date(rollcall.rollcall_time);
+  if (Number.isNaN(startTime.getTime())) return null;
 
-    if (success) {
-      foundCode = numberCode;
-      state.set("found", true);
-    }
+  // The official web client queries timetable rollcalls by the UTC start date.
+  const params = new URLSearchParams({
+    course_ids: String(rollcall.course_id),
+    rollcall_date: startTime.toISOString().slice(0, 10),
+  });
+  const timetable = await getRollcallJson(
+    "https://courses.zju.edu.cn/api/timetable_rollcalls?" + params
+  );
+  const rollcalls = Array.isArray(timetable?.rollcalls) ? timetable.rollcalls : [];
+  // Radar responses use rollcall_id/course_id; timetable responses use id/course.id.
+  const matchingRollcall = rollcalls.find((candidate) => {
+    const candidateId = candidate.rollcall_id ?? candidate.id;
+    const candidateCourseId = candidate.course_id ?? candidate.course?.id;
+    return (
+      String(candidateId) === String(rollcallId) &&
+      (!candidateCourseId || String(candidateCourseId) === String(rollcall.course_id))
+    );
   });
 
-  const batchSize = 200;
-  let foundCode = null;
-
-  for (let start = 0; start <= 9999; start += batchSize) {
-
-    if (state.get("found")) break;
-
-    const end = Math.min(start + batchSize - 1, 9999);
-    const tasks = [];
-
-    for (let ckn = start; ckn <= end; ckn++) {
-      const code = ckn.toString().padStart(4, "0");
-
-      tasks.push(
-        answerNumberRollcall(code, rid).then(success => {
-          if (state.get("found")) return;
-
-          if (success) {
-            foundCode = code;
-            state.set("found", true);
-          }
-        })
-      );
-    }
-
-    await Promise.race([
-      Promise.all(tasks),
-      new Promise(resolve => {
-        const timer = setInterval(() => {
-          if (state.get("found")) {
-            clearInterval(timer);
-            resolve();
-          }
-        }, 20);
-      })
-    ]);
-
-    if (state.get("found")) break;
-  }
-
-  if (foundCode) {
-    sendBoth(`[Auto Sign-in] Number Rollcall ${rid} succeeded: found code ${foundCode}.`);
-  }
-  else {
-    sendBoth(`[Auto Sign-in] Number Rollcall ${rid} failed to find valid code.`);
-  }
+  return normalizeNumberCode(matchingRollcall?.number_code);
 }
 
-async function getNumberCode(rid) {
-  return await courses
-    .fetch(
-      "https://courses.zju.edu.cn/api/rollcall/" + rid + "/student_rollcalls",
-    )
-    .then(async (v) => {
-      try {
-        return await v.json();
-      } catch (e) {
-        console.log("[Autosign][JSON error]", e);
-        return null;
-      }
-    });
+function normalizeNumberCode(value) {
+  if (value === null || value === undefined) return null;
+  const code = String(value).trim().padStart(4, "0");
+  return /^\d{4}$/.test(code) ? code : null;
+}
+
+async function getRollcallJson(url) {
+  const response = await courses.fetch(url);
+  if (!response.ok) {
+    console.log(`[Autosign] GET failed (${response.status}): ${url}`);
+    return null;
+  }
+  return await response.json().catch(() => null);
 }
